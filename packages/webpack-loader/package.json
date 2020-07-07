@@ -1,0 +1,46 @@
+{
+  "name": "@ipp/webpack-loader",
+  "version": "0.1.0",
+  "description": "A modern parallel image processing pipeline",
+  "author": "Marcus Cemes",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=10.18"
+  },
+  "homepage": "https://marcus-cemes.gitbook.io/image-processing-pipeline/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MarcusCemes/image-processing-pipeline"
+  },
+  "bugs": {
+    "url": "https://github.com/MarcusCemes/image-processing-pipeline/issues"
+  },
+  "keywords": [
+    "pipeline",
+    "responsive",
+    "libvips",
+    "webp",
+    "modern",
+    "frontend",
+    "cli",
+    "image"
+  ],
+  "dependencies": {
+    "@ipp/common": "^1.0.1",
+    "@ipp/core": "^1.0.1",
+    "loader-utils": "^2.0.0",
+    "schema-utils": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.3",
+    "@types/loader-utils": "^2.0.1",
+    "@types/node": "^14.0.14",
+    "@types/webpack": "^4.41.19",
+    "typescript": "^3.9.6"
+  }
+}

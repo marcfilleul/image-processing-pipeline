@@ -16,7 +16,7 @@ export const CompressPipe: Pipe<CompressOptions> = async (input, metadata, optio
   const plugin = resolvePlugin(metadata.format, options);
 
   return {
-    output: typeof plugin === "function" ? await plugin(input) : input,
+    data: typeof plugin === "function" ? await plugin(input) : input,
     metadata,
   };
 };

@@ -3,7 +3,7 @@ import sharp from "sharp";
 
 import { PIPES } from "./pipes";
 
-interface PipelineResult {
+export interface PipelineResult {
   data: Buffer;
   metadata: Metadata;
   save: string;
@@ -47,14 +47,14 @@ async function processPipelineChunk(input: Buffer, pipeline: Pipeline, metadata:
   for (const item of Array.isArray(result) ? result : [result]) {
     if (pipeline.save) {
       results.push({
-        data: item.output,
+        data: item.data,
         metadata: item.metadata,
         save: pipeline.save,
       });
     }
 
     const nextPipesResults = await Promise.all(
-      nextPipes.map((next) => processPipelineChunk(item.output, next, item.metadata))
+      nextPipes.map((next) => processPipelineChunk(item.data, next, item.metadata))
     );
 
     for (const nextItems of nextPipesResults) {

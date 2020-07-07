@@ -9,7 +9,6 @@ import { JobResult } from "./common";
 import { ConfigException, ConfigLoadException, loadConfig, Config } from "./config";
 import { findImages } from "./findImages";
 import { createInterrupt, InterruptException } from "./interrupt";
-import { saveManifest } from "./manifest";
 import { runPreparation } from "./preparation";
 import { runTerminal } from "./terminal";
 import { Task, UiState } from "./terminal/state";

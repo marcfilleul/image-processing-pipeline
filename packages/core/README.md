@@ -11,18 +11,20 @@
   -->
 
   <h2 align="center">Image Processing Pipeline</h2>
-  <i>Formally known as Responsive Image Builder</i>
+  <i align="center">Formally known as Responsive Image Builder</i>
 
   <div align="center">
     <br />
-    A modern parallel image processing pipeline
+    <span align="center">A modern parallel image processing pipeline</span>
     <br />
-    <a href="https://marcus-cemes.gitbook.io/image-processing-pipeline/"><strong>Explore the docs »</strong></a>
+    <a href="https://marcus-cemes.gitbook.io/image-processing-pipeline/" align="center"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/MarcusCemes/image-processing-pipeline/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/MarcusCemes/image-processing-pipeline/issues">Request Feature</a>
+    <span  align="center">
+      <a href="https://github.com/MarcusCemes/image-processing-pipeline/issues">Report Bug</a>
+      ·
+      <a href="https://github.com/MarcusCemes/image-processing-pipeline/issues">Request Feature</a>
+    </span>
     <br />
     <br />
   </div>
@@ -109,7 +111,7 @@ Project Link: [https://github.com/MarcusCemes/image-processing-pipeline](https:/
 
 <!-- LINKS -->
 
-[link-npm]: https://www.npmjs.com/package/image-processing-pipeline
+[link-npm]: https://www.npmjs.com/org/ipp
 [link-release]: https://github.com/MarcusCemes/image-processing-pipeline/releases/latest
 [link-node]: https://nodejs.org
 [link-typescript]: https://www.typescriptlang.org

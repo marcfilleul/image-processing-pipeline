@@ -26,7 +26,7 @@ export const ConvertPipe: Pipe<ConvertOptions> = async (input, metadata, options
     .toBuffer({ resolveWithObject: true });
 
   return {
-    output: data,
+    data: data,
     metadata: {
       ...metadata,
       width,

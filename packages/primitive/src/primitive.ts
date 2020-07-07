@@ -54,7 +54,7 @@ export const PrimitivePipe: Pipe<PrimitivePipeOptions> = async (input, metadata,
   const { stdout } = await execa(executable, flags, { input });
 
   return {
-    output: Buffer.from(stdout),
+    data: Buffer.from(stdout),
     metadata: {
       ...metadata,
       format: "svg",
