@@ -18,8 +18,12 @@ export const ippLoader: loader.Loader = function ippLoader(source, map) {
 
   // Generate the images
   runtime(this, validatedOptions, isBuffer(source) ? source : Buffer.from(source))
-    .then((result) => callback(null, result, map))
+    .then((result) => callback(null, serialiseResult(result), map))
     .catch((err) => callback(err));
 };
+
+function serialiseResult(obj: any): string {
+  return `module.exports = { default: ${JSON.stringify(obj)} };\n`;
+}
 
 export const raw = true;

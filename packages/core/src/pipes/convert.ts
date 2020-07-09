@@ -22,7 +22,10 @@ export const ConvertPipe: Pipe<ConvertOptions> = async (input, metadata, options
           }
         : void 0,
   })
-    .toFormat(options.format === "original" ? metadata.originalFormat : options.format, options.convertOptions)
+    .toFormat(
+      options.format === "original" ? (metadata.originalFormat as string) : options.format,
+      options.convertOptions
+    )
     .toBuffer({ resolveWithObject: true });
 
   return {

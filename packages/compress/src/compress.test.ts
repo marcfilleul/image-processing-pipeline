@@ -1,60 +1,82 @@
-import { PipeResult } from "@ipp/common";
+import { PipeResult, Metadata } from "@ipp/common";
+import { getMock } from "@ipp/testing";
 
 import { CompressPipe } from "./compress";
+import imageminMozjpeg from "imagemin-mozjpeg";
+import imageminPngquant, { Plugin } from "imagemin-pngquant";
+import imageminSvgo from "imagemin-svgo";
+import { randomBytes } from "crypto";
 
-const jpegPixel = Buffer.from(
-  "/9j/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k=",
-  "base64"
-);
+jest.mock("imagemin-mozjpeg");
+jest.mock("imagemin-pngquant");
+jest.mock("imagemin-svgo");
 
-const pngPixel = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP6DwABBQECz6AuzQAAAABJRU5ErkJggg==",
-  "base64"
-);
-
-const svgImage = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`, "utf-8");
-
-test("compresses a jpeg image", async () => {
-  const metadata = {
-    width: 1,
-    height: 1,
-    format: "jpeg",
-    channels: 3,
-    testValue: Math.random().toString(),
+describe("@ipp/compress pipe", () => {
+  const mocks = {
+    jpeg: getMock(imageminMozjpeg),
+    png: getMock(imageminPngquant),
+    svg: getMock(imageminSvgo),
   };
 
-  const result = (await CompressPipe(jpegPixel, metadata)) as PipeResult;
+  const pluginMock = jest.fn(async (buffer: Buffer) => buffer);
 
-  expect(Buffer.isBuffer(result.output)).toBeTruthy();
-  expect(result.metadata).toEqual(metadata);
-});
+  beforeAll(() => Object.values(mocks).forEach((mock) => mock.mockImplementation(() => pluginMock as any)));
+  afterEach(() => Object.values(mocks).forEach((mock) => mock.mockClear()));
+  afterAll(() => Object.values(mocks).forEach((mock) => mock.mockRestore()));
 
-test("compresses a png image", async () => {
-  const metadata = {
-    width: 1,
-    height: 1,
-    format: "png",
+  const data = randomBytes(8);
+
+  const formatMeta = (format: string): Metadata => ({
     channels: 3,
-    testValue: Math.random().toString(),
-  };
+    format,
+    height: 256,
+    width: 256,
+    originalFormat: format,
+    originalHeight: 256,
+    originalWidth: 256,
+  });
 
-  const result = (await CompressPipe(pngPixel, metadata)) as PipeResult;
+  test("accepts a jpeg image", async () => {
+    const metadata = formatMeta("jpeg");
+    const result = CompressPipe(data, metadata);
 
-  expect(Buffer.isBuffer(result.output)).toBeTruthy();
-  expect(result.metadata).toEqual(metadata);
-});
+    await expect(result).resolves.toMatchObject<PipeResult>({ data, metadata });
+    expect(mocks.jpeg).toHaveBeenCalled();
+    expect(pluginMock).toHaveBeenCalledWith(data);
+  });
 
-test("compresses an svg image", async () => {
-  const metadata = {
-    width: 1,
-    height: 1,
-    format: "svg",
-    channels: 3,
-    testValue: Math.random().toString(),
-  };
+  test("accepts a png image", async () => {
+    const metadata = formatMeta("png");
+    const result = CompressPipe(data, metadata);
 
-  const result = (await CompressPipe(svgImage, metadata)) as PipeResult;
+    await expect(result).resolves.toMatchObject<PipeResult>({ data, metadata });
+    expect(mocks.png).toHaveBeenCalled();
+    expect(pluginMock).toHaveBeenCalledWith(data);
+  });
 
-  expect(Buffer.isBuffer(result.output)).toBeTruthy();
-  expect(result.metadata).toEqual(metadata);
+  test("accepts a svg image", async () => {
+    const metadata = formatMeta("svg");
+    const result = CompressPipe(data, metadata);
+
+    await expect(result).resolves.toMatchObject<PipeResult>({ data, metadata });
+    expect(mocks.svg).toHaveBeenCalled();
+    expect(pluginMock).toHaveBeenCalledWith(data);
+  });
+
+  test("rejects on unsupported format", async () => {
+    const metadata = formatMeta("unsupportedFormat");
+    const result = CompressPipe(data, metadata);
+
+    await expect(result).rejects.toBeTruthy();
+  });
+
+  test("respects the allowUnsupported option", async () => {
+    const metadata = formatMeta("unsupportedFormat");
+    const result = CompressPipe(data, metadata, { allowUnsupported: true });
+
+    await expect(result).resolves.toMatchObject<PipeResult>({
+      data,
+      metadata,
+    });
+  });
 });

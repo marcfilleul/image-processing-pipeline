@@ -5,10 +5,14 @@ import svgo, { Options as SvgOptions } from "imagemin-svgo";
 
 type CompressFunction = (image: Buffer) => Promise<Buffer>;
 
-interface CompressOptions {
-  softFail?: boolean;
+export interface CompressOptions {
+  /** Don't throw an error if an unsupported image format is received, instead pass it through */
+  allowUnsupported?: boolean;
+  /** Options passed to mozjpeg */
   jpeg?: JpegOptions;
+  /** Options passed to pngquant */
   png?: PngOptions;
+  /** Options passed to svgo */
   svg?: SvgOptions;
 }
 
@@ -30,6 +34,6 @@ function resolvePlugin(format: string, options: CompressOptions): CompressFuncti
     case "svg":
       return svgo(options.svg);
     default:
-      if (!options.softFail) throw new PipeException(`Cannot compress format ${format}`);
+      if (!options.allowUnsupported) throw new PipeException(`Cannot compress format ${format}`);
   }
 }

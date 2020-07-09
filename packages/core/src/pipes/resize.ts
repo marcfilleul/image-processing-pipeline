@@ -3,12 +3,12 @@ import sharp, { Raw, ResizeOptions as SharpOptions } from "sharp";
 
 sharp.concurrency(1);
 
-interface Breakpoint {
+export interface Breakpoint {
   name?: string;
   resizeOptions?: SharpOptions;
 }
 
-interface ResizeOptions {
+export interface ResizeOptions {
   breakpoints?: Breakpoint[];
   resizeOptions?: SharpOptions;
   allowDuplicates?: boolean;
@@ -91,17 +91,19 @@ async function executeBreakpoint(breakpoint: Breakpoint, input: Buffer, metadata
     .resize(extractSharpOptions(breakpoint.resizeOptions))
     .toBuffer({ resolveWithObject: true });
 
-  return {
-    output: data,
+  const returnValue: PipeResult = {
+    data,
     metadata: {
       ...metadata,
       width,
       height,
       format,
       channels,
-      breakpoint: breakpoint.name,
     },
   };
+
+  if (breakpoint.name) returnValue.metadata.breakpoint = breakpoint.name;
+  return returnValue;
 }
 
 function extractSharpOptions(options: SharpOptions = {}): SharpOptions {

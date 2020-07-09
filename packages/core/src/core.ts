@@ -1,47 +1,34 @@
-import { Metadata, Pipe, Pipeline, PipelineException, PipeResult } from "@ipp/common";
+import {
+  Metadata,
+  Pipe,
+  Pipeline,
+  PipelineException,
+  PipelineResult,
+  PipelineSegment,
+  PipeResult,
+  PrimitiveValue,
+} from "@ipp/common";
 import sharp from "sharp";
-
 import { PIPES } from "./pipes";
-
-export interface PipelineResult {
-  data: Buffer;
-  metadata: Metadata;
-  save: string;
-}
 
 export async function processPipeline(
   input: Buffer,
-  pipeline: Pipeline[],
-  metadata?: { [index: string]: any }
+  pipeline: Pipeline,
+  metadata?: Record<string, PrimitiveValue>
 ): Promise<PipelineResult[]> {
-  const fullMetadata = { ...metadata, ...(await readMetadata(input)) };
-  return Promise.all(pipeline.map((chunk) => processPipelineChunk(input, chunk, fullMetadata))).then((chunks) =>
-    chunks.reduce((p, c) => [...p, ...c], [])
-  );
+  const initialMetadata = { ...metadata, ...(await readMetadata(input)) };
+
+  const pipelineChunks = pipeline.map((chunk) => processSegment(input, chunk, initialMetadata));
+
+  return (await Promise.all(pipelineChunks)).flat();
 }
 
-async function readMetadata(input: Buffer): Promise<Metadata> {
-  try {
-    const { width, height, channels, format } = await sharp(input).metadata();
-    if (!width || !height || !channels || !format) throw new Error("missing properties");
-    return {
-      width,
-      height,
-      channels,
-      format,
-      originalFormat: format,
-    };
-  } catch (err) {
-    throw new PipelineException(`Metadata error: ${err.message || err}`);
-  }
-}
-
-async function processPipelineChunk(input: Buffer, pipeline: Pipeline, metadata: Metadata): Promise<PipelineResult[]> {
+async function processSegment(input: Buffer, pipeline: PipelineSegment, metadata: Metadata): Promise<PipelineResult[]> {
   const { pipe, name } = await resolvePipe(pipeline.pipe);
 
   const result = await processPipe(pipe, input, metadata, name, pipeline.options);
 
-  const nextPipes: Pipeline[] = Array.isArray(pipeline.then) ? pipeline.then : pipeline.then ? [pipeline.then] : [];
+  const nextPipes: Pipeline = Array.isArray(pipeline.then) ? pipeline.then : pipeline.then ? [pipeline.then] : [];
   const results: PipelineResult[] = [];
 
   for (const item of Array.isArray(result) ? result : [result]) {
@@ -53,9 +40,7 @@ async function processPipelineChunk(input: Buffer, pipeline: Pipeline, metadata:
       });
     }
 
-    const nextPipesResults = await Promise.all(
-      nextPipes.map((next) => processPipelineChunk(item.data, next, item.metadata))
-    );
+    const nextPipesResults = await Promise.all(nextPipes.map((next) => processSegment(item.data, next, item.metadata)));
 
     for (const nextItems of nextPipesResults) {
       results.push(...nextItems);
@@ -65,7 +50,25 @@ async function processPipelineChunk(input: Buffer, pipeline: Pipeline, metadata:
   return results;
 }
 
-async function resolvePipe(pipe: Pipeline["pipe"]): Promise<{ pipe: Pipe; name: string }> {
+async function readMetadata(input: Buffer): Promise<Metadata> {
+  try {
+    const { width, height, channels, format } = await sharp(input).metadata();
+    if (!width || !height || !channels || !format) throw new Error("missing properties");
+    return {
+      width,
+      height,
+      channels,
+      format,
+      originalWidth: width,
+      originalHeight: height,
+      originalFormat: format,
+    };
+  } catch (err) {
+    throw new PipelineException(`Metadata error: ${err.message || err}`);
+  }
+}
+
+async function resolvePipe(pipe: PipelineSegment["pipe"]): Promise<{ pipe: Pipe; name: string }> {
   try {
     if (typeof pipe === "string") return { pipe: PIPES[pipe], name: pipe };
 
@@ -92,7 +95,7 @@ async function processPipe(
   input: Buffer,
   metadata: Metadata,
   name: string,
-  options?: PipeOptions
+  options?: any
 ): Promise<PipeResult | PipeResult[]> {
   try {
     const result = await pipe(input, metadata, options);

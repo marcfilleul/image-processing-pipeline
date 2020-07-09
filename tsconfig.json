@@ -1,5 +1,11 @@
 {
   "files": [],
+  "compilerOptions": {
+    "baseUrl": "./packages",
+    "paths": {
+      "@ipp/*": ["*/src"]
+    }
+  },
   "references": [
     { "path": "packages/broker" },
     { "path": "packages/cli" },
