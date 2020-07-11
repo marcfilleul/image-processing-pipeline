@@ -1,19 +1,18 @@
 import { createBroker } from "@ipp/broker";
+import { Pipeline } from "@ipp/common";
 import chalk from "chalk";
 import { produce } from "immer";
 import { resolve } from "path";
 import { BehaviorSubject } from "rxjs";
 import { options } from "yargs";
-
 import { JobResult } from "./common";
-import { ConfigException, ConfigLoadException, loadConfig, Config } from "./config";
+import { Config, ConfigException, ConfigLoadException, loadConfig } from "./config";
 import { findImages } from "./findImages";
 import { createInterrupt, InterruptException } from "./interrupt";
 import { runPreparation } from "./preparation";
 import { runTerminal } from "./terminal";
 import { Task, UiState } from "./terminal/state";
 import { formatError, getVersion, printPadded } from "./utils";
-import { Pipeline } from "../../common/src";
 
 /** Used to update the UI state using the *ìmmer* library */
 type UiStateUpdater = (state: UiState) => void;

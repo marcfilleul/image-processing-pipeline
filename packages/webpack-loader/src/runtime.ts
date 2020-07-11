@@ -1,9 +1,11 @@
-import { ManifestItem, mapManifest, Metadata, Pipeline } from "@ipp/common";
-import { processPipeline } from "@ipp/core";
+import { ManifestItem, mapManifest, Metadata, Pipeline, PipelineFormat } from "@ipp/common";
+import { executePipeline } from "@ipp/core";
 import { interpolateName } from "loader-utils";
 import { join } from "path";
 import { loader } from "webpack";
 import { Options } from "./options";
+
+const PREFERRED_SIZE = 1920;
 
 export interface SimpleExport {
   width?: number;
@@ -13,6 +15,8 @@ export interface SimpleExport {
 }
 
 export type ManifestExport = ManifestItem;
+
+type FileFormat = PipelineFormat & { file: string };
 
 /**
  * The main processing function for the loader. Sends the source through `@ipp/core`
@@ -30,49 +34,89 @@ export async function runtime(
 ): Promise<SimpleExport | ManifestExport> {
   const fullBuild = ctx.mode === "production" || options.devBuild;
 
-  const results = await processPipeline(
-    source,
+  const result = await executePipeline(
     fullBuild ? options.pipeline : ([{ pipe: "passthrough", save: true }] as Pipeline),
+    source,
     { originalPath: ctx.resourcePath }
   );
 
-  const resultsWithFiles = results.map((result) => {
+  const formats = result.formats.map((format) => {
     // Run the generate file through the webpack interpolateName() utility
-    const filename = generateFilename(ctx, options, result.data);
+    const filename = generateFilename(ctx, options, format.data.buffer);
 
     // Register the generated file with webpack
-    ctx.emitFile(join(options.outputPath, filename), result.data, null);
+    ctx.emitFile(join(options.outputPath || "./", filename), format.data.buffer, null);
     return {
-      ...result,
-      metadata: { ...result.metadata, path: filename },
+      ...format,
+      metadata: { ...format.data.metadata, path: filename },
       file: filename,
     };
   });
 
-  if (typeof options.manifest !== "undefined") {
-    // Manifest mode: allow custom metadata mapping
-    return mapManifest(results, options.manifest);
-  } else {
-    // Simple mode: build srcset strings
-    const srcset: Record<string, [string, number][]> = {};
+  return typeof options.manifest !== "undefined"
+    ? mapManifest(result, options.manifest)
+    : {
+        src: determineSrc(formats),
+        srcset: generateMimeMap(formats),
+        width: result.source.metadata.width,
+        height: result.source.metadata.height,
+      };
+}
 
-    for (const result of resultsWithFiles) {
-      const mime = formatToMime(result.metadata.format);
-      if (typeof srcset[mime] === "undefined") srcset[mime] = [];
+/** Takes an array of formats and creates an object, where keys are MIME types */
+function generateMimeMap(formats: FileFormat[]): Record<string, string> {
+  // Simple mode: build srcset strings
+  const srcset: Record<string, [string, number][]> = {};
 
-      srcset[mime].push([result.file, result.metadata.width]);
-    }
+  for (const format of formats) {
+    const mime = formatToMime(format.data.metadata.format);
+    if (typeof srcset[mime] === "undefined") srcset[mime] = [];
 
-    const mimeMap: Record<string, string> = {};
-    for (const [key, value] of Object.entries(srcset)) {
-      mimeMap[key] = value.map(([f, w]) => `${f} ${w}w`).join(", ");
-    }
-
-    const width = results[0]?.metadata?.originalWidth as number;
-    const height = results[0]?.metadata?.originalHeight as number;
-
-    return { srcset: mimeMap, width, height };
+    srcset[mime].push([format.file, format.data.metadata.width]);
   }
+
+  const mimeMap: Record<string, string> = {};
+  for (const [key, value] of Object.entries(srcset)) {
+    mimeMap[key] = value.map(([f, w]) => `${f} ${w}w`).join(", ");
+  }
+
+  return mimeMap;
+}
+
+/**
+ * Attempts to select the best candidate for the source property,
+ * preferring JPEG images that are closes to the 1920px wide category.
+ */
+function determineSrc(formats: FileFormat[]): string | undefined {
+  let bestFormat: FileFormat | undefined;
+
+  for (const format of formats) {
+    if (typeof bestFormat === "undefined") {
+      bestFormat = format;
+      continue;
+    }
+
+    if (betterMetadata(bestFormat.data.metadata, format.data.metadata)) bestFormat = format;
+  }
+
+  return bestFormat ? bestFormat.file : void 0;
+}
+
+/**
+ * Compares the metadata of two formats, and returns true if the second format
+ * is better suited for the `src` parameter.
+ */
+function betterMetadata(reference: Metadata, candidate: Metadata): boolean {
+  // Prefer JPEG
+  if (reference.format !== "jpeg" && candidate.format === "jpeg") return true;
+  if (reference.format === "jpeg" && candidate.format !== "jpeg") return false;
+
+  // Otherwise prefer WebP
+  if (reference.format === "webp" && candidate.format !== "webp" && candidate.format !== "jpeg") return false;
+  if (reference.format !== "webp" && reference.format !== "jpeg" && candidate.format === "webp") return true;
+
+  // Otherwise prefer size
+  return Math.abs(PREFERRED_SIZE - candidate.width) <= Math.abs(PREFERRED_SIZE - reference.width);
 }
 
 /** Generates the resulting filename using webpack's loader utilities */

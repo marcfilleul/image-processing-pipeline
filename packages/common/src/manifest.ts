@@ -7,7 +7,7 @@
 // This can be reused across modules, and therefore stays abstract
 // to allow customisation/optimisation on a per-module basis.
 
-import { PipelineResult, PipelineResults, PrimitiveValue } from "./pipeline";
+import { Metadata, PipelineResult, PrimitiveValue } from "./pipeline";
 
 /* -- Types -- */
 
@@ -41,13 +41,13 @@ export interface ManifestMappings {
  * This is useful when exporting metadata from a pipeline result, as it allows the user
  * to select exactly what metadata they would like to keep and under what name.
  */
-export function mapManifest(results: PipelineResults, mappings: ManifestMappings): ManifestItem {
+export function mapManifest(result: PipelineResult, mappings: ManifestMappings): ManifestItem {
   const manifestItem: ManifestItem = {
-    f: results.map((result) => mapMetadata(result, mappings.format)),
+    f: result.formats.map((format) => mapMetadata(format.data.metadata, mappings.format)),
   };
 
-  if (results.length > 0) {
-    const m = voidIfEmpty(mapMetadata(results[0], mappings.source));
+  if (mappings.source) {
+    const m = voidIfEmpty(mapMetadata(result.source.metadata, mappings.source));
     if (m) manifestItem.m = m;
   }
 
@@ -55,14 +55,14 @@ export function mapManifest(results: PipelineResults, mappings: ManifestMappings
 }
 
 /** Maps metadata from a single pipeline result based on a set of defined mappings */
-function mapMetadata(result: PipelineResult, mappings: StringMap): PrimitiveMap {
+function mapMetadata(metadata: Metadata, mappings: StringMap): PrimitiveMap {
   const mappedMetadata: PrimitiveMap = {};
 
   for (const [key, template] of Object.entries(mappings)) {
     const { value, limit } = extractValueLimit(template);
 
-    if (typeof result.metadata[value] !== "undefined") {
-      const valueToMap = result.metadata[value];
+    if (typeof metadata[value] !== "undefined") {
+      const valueToMap = metadata[value];
 
       mappedMetadata[key] = limit ? String(valueToMap).substr(0, limit) : valueToMap;
     }

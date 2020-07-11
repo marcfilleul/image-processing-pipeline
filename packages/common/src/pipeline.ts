@@ -1,4 +1,6 @@
-/** A primitive value that can be used in metadata */
+import { Immutable } from "./types";
+
+/** A primitive value that can be easily serialised and used in metadata */
 export type PrimitiveValue = boolean | number | string;
 
 /**
@@ -10,19 +12,17 @@ export interface Metadata {
   width: number;
   height: number;
   channels: number;
+  hash: string;
   originalFormat: string;
   originalWidth: number;
   originalHeight: number;
+  originalHash: string;
   [index: string]: PrimitiveValue;
 }
 
-/**
- * The expected return value from a pipe function. It is a simple process applied
- * as a transformation to an image buffer, with the ability of extending the metadata
- * object to be passed to future pipes.
- */
-export interface PipeResult {
-  data: Buffer;
+/** A binary buffer with an associated metadata object */
+export interface DataObject {
+  buffer: Buffer;
   metadata: Metadata;
 }
 
@@ -32,27 +32,42 @@ export interface PipeResult {
  * a new buffer, extending the metadata object if needed. The returned buffer and
  * metadata object will be passed to any future pipes down that chain.
  */
-export type Pipe<O = any> = (input: Buffer, metadata: Metadata, options?: O) => Promise<PipeResult | PipeResult[]>;
+export type Pipe<O = any> = (
+  data: Immutable<DataObject>,
+  options?: O
+) => Promise<Immutable<DataObject> | Immutable<DataObject>[]>;
 
 /**
- * A saved chunk of the pipeline process. It is generated from a PipeResult when that pipe
- * is marked with a `save` property in the pipeline schema, indicating that that particular
- * pipe's result should be saved as an exported format. The value of save matches the value
- * defined in the pipeline segment.
+ * A saved chunk of the pipeline process. It is generated from a DataObject returned from a
+ * pipe when that pipe is marked with a `save` property in the pipeline schema, indicating
+ * that that particular pipe's result should be saved as an exported format. The value of
+ * `saveKey` matches the value defined in the pipeline schema.
  */
-export type PipelineResult = PipeResult & { save: PrimitiveValue };
+export type PipelineFormat = { data: DataObject; saveKey: PrimitiveValue };
 
 /** All array of PipelineResult objects that represents all exported formats of a pipeline process */
-export type PipelineResults = PipelineResult[];
+export type PipelineFormats = PipelineFormat[];
+
+/**
+ * The result of a pipeline process executed by @ipp/core.
+ *
+ * Contains the source data object, which is the initial input buffer
+ * augmented with initial metadata, and the resulting formats from the pipeline
+ * process.
+ */
+export interface PipelineResult {
+  source: DataObject;
+  formats: PipelineFormats;
+}
 
 /**
  * The template of a single branch of a pipeline schema. It may only have one input, but the
  * result of the first pipe may be sent to multiple consecutive pipes.
  *
  * The save property indicates whether the output of the pipe should also be exported as from
- * the pipeline segment, which can later be identified by the value of the save property.
+ * the pipeline branch, which can later be identified by the value of the save property.
  */
-export interface PipelineSegment<O = any> {
+export interface PipelineBranch<O = any> {
   pipe: string | { resolve: string; module?: string } | Pipe;
   options?: O;
   save?: PrimitiveValue;
@@ -61,10 +76,10 @@ export interface PipelineSegment<O = any> {
 
 /**
  * The template that a complete pipeline schema must adhere to. It is a collection of
- * "tree branches", where the beginning of each branch, or segment, will receive the original
+ * "tree branches", where the beginning of each branch will receive the original
  * image, which will subsequently be piped into the next connected pipes.
  *
- * Once the pipeline has finished executing, any pipeline segments that have the `save` property
+ * Once the pipeline has finished executing, any pipeline branch that have the `save` property
  * defined will have their output image buffer saved as an exported format of the pipeline.
  */
-export type Pipeline = PipelineSegment[];
+export type Pipeline = PipelineBranch[];

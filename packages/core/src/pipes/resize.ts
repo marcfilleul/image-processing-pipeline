@@ -1,4 +1,4 @@
-import { Metadata, Pipe, PipeResult } from "@ipp/common";
+import { DataObject, Immutable, Pipe } from "@ipp/common";
 import sharp, { Raw, ResizeOptions as SharpOptions } from "sharp";
 
 sharp.concurrency(1);
@@ -18,19 +18,18 @@ export interface ResizeOptions {
  * A built-in pipe that lets you resize an image into a single size, or into multiple
  * different breakpoints. When creating breakpoints, duplicate sizes will be skipped.
  */
-export const ResizePipe: Pipe<ResizeOptions> = async (input, metadata, options = {}) => {
+export const ResizePipe: Pipe<ResizeOptions> = async (data, options = {}) => {
   // Execute a single resize
-  if (!options.breakpoints) return executeBreakpoint({ resizeOptions: options.resizeOptions }, input, metadata);
+  if (!options.breakpoints) return executeBreakpoint({ resizeOptions: options.resizeOptions }, data);
 
   // Execute a blind breakpoint resize
-  if (options.allowDuplicates)
-    return Promise.all(options.breakpoints.map((brk) => executeBreakpoint(brk, input, metadata)));
+  if (options.allowDuplicates) return Promise.all(options.breakpoints.map((brk) => executeBreakpoint(brk, data)));
 
   // Estimate the resulting size and remove any would-be-duplicates
   return Promise.all(
     options.breakpoints
-      .filter(duplicateFilter(metadata.width, metadata.height, options.resizeOptions?.withoutEnlargement))
-      .map((brk) => executeBreakpoint(brk, input, metadata))
+      .filter(duplicateFilter(data.metadata.width, data.metadata.height, options.resizeOptions?.withoutEnlargement))
+      .map((brk) => executeBreakpoint(brk, data))
   );
 };
 
@@ -74,27 +73,27 @@ function calculateDiagonal(width: number, height: number, targetWidth?: number, 
 }
 
 /** Converts the breakpoint into a Sharp execution instance */
-async function executeBreakpoint(breakpoint: Breakpoint, input: Buffer, metadata: Metadata): Promise<PipeResult> {
+async function executeBreakpoint(breakpoint: Breakpoint, data: Immutable<DataObject>): Promise<DataObject> {
   const {
-    data,
+    data: newBuffer,
     info: { width, height, format, channels },
-  } = await sharp(input, {
+  } = await sharp(data.buffer as Buffer, {
     raw:
-      metadata.format === "raw"
+      data.metadata.format === "raw"
         ? {
-            width: metadata.width,
-            height: metadata.height,
-            channels: metadata.channels as Raw["channels"],
+            width: data.metadata.width,
+            height: data.metadata.height,
+            channels: data.metadata.channels as Raw["channels"],
           }
         : void 0,
   })
-    .resize(extractSharpOptions(breakpoint.resizeOptions))
+    .resize(extractSharpOptions({ withoutEnlargement: true, ...breakpoint.resizeOptions }))
     .toBuffer({ resolveWithObject: true });
 
-  const returnValue: PipeResult = {
-    data,
+  const returnValue: DataObject = {
+    buffer: newBuffer,
     metadata: {
-      ...metadata,
+      ...data.metadata,
       width,
       height,
       format,

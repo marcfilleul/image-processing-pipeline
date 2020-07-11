@@ -7,7 +7,7 @@ const NAME = "IPP Loader";
 interface BasicWebpackOptions {
   context?: string;
   name: string;
-  outputPath: string;
+  outputPath?: string;
   regExp?: RegExp;
 }
 

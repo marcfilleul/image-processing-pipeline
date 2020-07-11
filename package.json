@@ -7,9 +7,10 @@
   "license": "MIT",
   "scripts": {
     "bootstrap": "lerna bootstrap",
-    "build": "tsc -b",
+    "build": "tsc -b tsconfig.build.json",
     "build-vendor": "lerna run build-vendor",
-    "clean": "npx rimraf \"./packages/*/tsconfig.tsbuildinfo\" \"./packages/*/dist\" \"./**/node_modules/\"",
+    "clean": "npm run clean:build && npx rimraf \"./**/node_modules/\"",
+    "clean:build": "rimraf \"./packages/*/*.tsbuildinfo\" \"./packages/*/dist\"",
     "fix:format": "prettier --write \"packages/*/src/**/*.{ts,tsx,json}\"",
     "fix:lint": "eslint . --fix --ext .ts,.tsx",
     "start": "cd packages/cli && ts-node -r tsconfig-paths/register src",
@@ -87,6 +88,11 @@
     "testEnvironment": "node",
     "collectCoverageFrom": [
       "packages/*/src/**/*.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/packages/cli",
+      "/packages/broker"
     ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",

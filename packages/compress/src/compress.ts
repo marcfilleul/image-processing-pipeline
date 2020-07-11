@@ -16,12 +16,12 @@ export interface CompressOptions {
   svg?: SvgOptions;
 }
 
-export const CompressPipe: Pipe<CompressOptions> = async (input, metadata, options = {}) => {
-  const plugin = resolvePlugin(metadata.format, options);
+export const CompressPipe: Pipe<CompressOptions> = async (data, options = {}) => {
+  const plugin = resolvePlugin(data.metadata.format, options);
 
   return {
-    data: typeof plugin === "function" ? await plugin(input) : input,
-    metadata,
+    buffer: typeof plugin === "function" ? await plugin(data.buffer as Buffer) : data.buffer,
+    metadata: data.metadata,
   };
 };
 
@@ -34,6 +34,6 @@ function resolvePlugin(format: string, options: CompressOptions): CompressFuncti
     case "svg":
       return svgo(options.svg);
     default:
-      if (!options.allowUnsupported) throw new PipeException(`Cannot compress format ${format}`);
+      if (!options.allowUnsupported) throw new PipeException(`Unsupported format: ${format}`);
   }
 }

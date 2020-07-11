@@ -20,10 +20,10 @@ export enum PrimitiveMode {
 }
 
 interface PrimitivePipeOptions {
-  number?: number;
-  mode?: PrimitiveMode;
-  alpha?: number;
-  concurrency?: number;
+  number: number;
+  mode: PrimitiveMode;
+  alpha: number;
+  concurrency: number;
 }
 
 const DEFAULT_OPTIONS: PrimitivePipeOptions = {
@@ -33,30 +33,36 @@ const DEFAULT_OPTIONS: PrimitivePipeOptions = {
   concurrency: 1,
 };
 
-export const PrimitivePipe: Pipe<PrimitivePipeOptions> = async (input, metadata, options?) => {
+/**
+ * A wrapper pipe around the primitive algorithm by Michael Fogleman. Generates
+ * an SVG vector image using geometric primitives. Not a deterministic algorithm.
+ *
+ * @author https://github.com/fogleman/primitive
+ */
+export const PrimitivePipe: Pipe<Partial<PrimitivePipeOptions>> = async (data, options) => {
   const parsedOptions: PrimitivePipeOptions = {
     ...DEFAULT_OPTIONS,
     ...(options || {}),
   };
 
-  if (SUPPORTED_FORMATS.indexOf(metadata.format) === -1)
-    throw new PipeException("Unsupported image format: " + metadata.format);
+  if (SUPPORTED_FORMATS.indexOf(data.metadata.format) === -1)
+    throw new PipeException("Unsupported image format: " + data.metadata.format);
 
   const flags = [];
   flags.push("-i", "-");
   flags.push("-o", "-");
-  flags.push("-n", parsedOptions.number!.toString());
-  flags.push("-m", parsedOptions.mode!.toString());
-  flags.push("-a", parsedOptions.alpha!.toString());
-  flags.push("-j", parsedOptions.concurrency!.toString());
+  flags.push("-n", parsedOptions.number.toString());
+  flags.push("-m", parsedOptions.mode.toString());
+  flags.push("-a", parsedOptions.alpha.toString());
+  flags.push("-j", parsedOptions.concurrency.toString());
 
   const executable = getExecutable();
-  const { stdout } = await execa(executable, flags, { input });
+  const { stdout } = await execa(executable, flags, { input: data.buffer as Buffer });
 
   return {
-    data: Buffer.from(stdout),
+    buffer: Buffer.from(stdout),
     metadata: {
-      ...metadata,
+      ...data.metadata,
       format: "svg",
     },
   };

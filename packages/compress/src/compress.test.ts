@@ -1,82 +1,68 @@
-import { PipeResult, Metadata } from "@ipp/common";
+import { DataObject, sampleMetadata } from "@ipp/common";
 import { getMock } from "@ipp/testing";
-
-import { CompressPipe } from "./compress";
-import imageminMozjpeg from "imagemin-mozjpeg";
-import imageminPngquant, { Plugin } from "imagemin-pngquant";
-import imageminSvgo from "imagemin-svgo";
 import { randomBytes } from "crypto";
+import imageminMozjpeg from "imagemin-mozjpeg";
+import imageminPngquant from "imagemin-pngquant";
+import imageminSvgo from "imagemin-svgo";
+import { CompressPipe } from "./compress";
 
 jest.mock("imagemin-mozjpeg");
 jest.mock("imagemin-pngquant");
 jest.mock("imagemin-svgo");
 
-describe("@ipp/compress pipe", () => {
+describe("external CompressPipe", () => {
   const mocks = {
     jpeg: getMock(imageminMozjpeg),
     png: getMock(imageminPngquant),
     svg: getMock(imageminSvgo),
   };
 
+  /** A mock imagemin plugin function */
   const pluginMock = jest.fn(async (buffer: Buffer) => buffer);
 
   beforeAll(() => Object.values(mocks).forEach((mock) => mock.mockImplementation(() => pluginMock as any)));
   afterEach(() => Object.values(mocks).forEach((mock) => mock.mockClear()));
   afterAll(() => Object.values(mocks).forEach((mock) => mock.mockRestore()));
 
-  const data = randomBytes(8);
+  const data: DataObject = {
+    buffer: randomBytes(8),
+    metadata: sampleMetadata(256, "jpeg"),
+  };
 
-  const formatMeta = (format: string): Metadata => ({
-    channels: 3,
-    format,
-    height: 256,
-    width: 256,
-    originalFormat: format,
-    originalHeight: 256,
-    originalWidth: 256,
-  });
+  test.each([
+    ["jpeg", mocks.jpeg],
+    ["png", mocks.png],
+    ["svg", mocks.svg],
+  ])("accepts a %s image", async (name, mock) => {
+    const formatData = { ...data, metadata: { ...data.metadata, format: name } };
 
-  test("accepts a jpeg image", async () => {
-    const metadata = formatMeta("jpeg");
-    const result = CompressPipe(data, metadata);
+    const result = CompressPipe(formatData);
 
-    await expect(result).resolves.toMatchObject<PipeResult>({ data, metadata });
-    expect(mocks.jpeg).toHaveBeenCalled();
-    expect(pluginMock).toHaveBeenCalledWith(data);
-  });
-
-  test("accepts a png image", async () => {
-    const metadata = formatMeta("png");
-    const result = CompressPipe(data, metadata);
-
-    await expect(result).resolves.toMatchObject<PipeResult>({ data, metadata });
-    expect(mocks.png).toHaveBeenCalled();
-    expect(pluginMock).toHaveBeenCalledWith(data);
-  });
-
-  test("accepts a svg image", async () => {
-    const metadata = formatMeta("svg");
-    const result = CompressPipe(data, metadata);
-
-    await expect(result).resolves.toMatchObject<PipeResult>({ data, metadata });
-    expect(mocks.svg).toHaveBeenCalled();
-    expect(pluginMock).toHaveBeenCalledWith(data);
+    await expect(result).resolves.toMatchObject<DataObject>(formatData);
+    expect(mock).toHaveBeenCalled();
+    expect(pluginMock).toHaveBeenCalledWith(formatData.buffer);
   });
 
   test("rejects on unsupported format", async () => {
-    const metadata = formatMeta("unsupportedFormat");
-    const result = CompressPipe(data, metadata);
+    const result = CompressPipe({ ...data, metadata: { ...data.metadata, format: "__unsupportedFormat" } });
 
-    await expect(result).rejects.toBeTruthy();
+    await expect(result).rejects.toThrowError("Unsupported format: __unsupportedFormat");
   });
 
-  test("respects the allowUnsupported option", async () => {
-    const metadata = formatMeta("unsupportedFormat");
-    const result = CompressPipe(data, metadata, { allowUnsupported: true });
+  describe("E2E - End to End testing", () => {
+    test("compresses a PNG image", async () => {
+      mocks.png.mockImplementationOnce(jest.requireActual("imagemin-pngquant"));
 
-    await expect(result).resolves.toMatchObject<PipeResult>({
-      data,
-      metadata,
+      const pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
+      const pngDataObject = { buffer: Buffer.from(pixel, "base64"), metadata: sampleMetadata(1, "png") };
+      const result = CompressPipe(pngDataObject);
+
+      // The compress function actually creates a lot of excess data
+      // compared to the optimised PNG pixel
+      await expect(result).resolves.toEqual(expect.objectContaining({ metadata: pngDataObject.metadata }));
+
+      expect(((await result) as DataObject).buffer.compare(pngDataObject.buffer)).not.toBe(0);
+      expect(mocks.png).toHaveBeenCalled();
     });
   });
 });

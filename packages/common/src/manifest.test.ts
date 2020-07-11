@@ -1,26 +1,35 @@
+import { randomBytes } from "crypto";
 import { ManifestItem, mapManifest } from "./manifest";
 import { PipelineResult } from "./pipeline";
+import { sampleMetadata } from "./utils";
 
 describe("function mapManifest()", () => {
-  const sampleResults: PipelineResult[] = [
-    {
-      data: Buffer.of(0),
-      save: "file",
+  const sampleResult: PipelineResult = {
+    source: {
+      buffer: randomBytes(8),
       metadata: {
-        format: "jpeg",
-        width: 256,
-        height: 256,
-        channels: 3,
-        someValue: 42,
-        someVeryLongValue: "longvalue",
+        ...sampleMetadata(256, "jpeg"),
+        __testValue: 42,
+        __testLongValue: "longvalue",
       },
     },
-  ];
+    formats: [
+      {
+        data: {
+          buffer: randomBytes(8),
+          metadata: {
+            ...sampleMetadata(128, "jpeg"),
+          },
+        },
+        saveKey: "saveValue",
+      },
+    ],
+  };
 
   test("maps sample result data", () => {
-    const manifest = mapManifest(sampleResults, {
+    const manifest = mapManifest(sampleResult, {
       source: {
-        v: "someValue",
+        v: "__testValue",
         x: "nonexistantValue",
       },
       format: {
@@ -35,16 +44,16 @@ describe("function mapManifest()", () => {
       },
       f: [
         {
-          w: 256,
-          h: 256,
+          w: 128,
+          h: 128,
         },
       ],
     });
   });
 
   test("limits a long value", () => {
-    const manifest = mapManifest(sampleResults, {
-      source: { v: "someVeryLongValue:4" },
+    const manifest = mapManifest(sampleResult, {
+      source: { v: "__testLongValue:4" },
       format: {},
     });
 
@@ -57,8 +66,8 @@ describe("function mapManifest()", () => {
   });
 
   test("ignores malformed limit", () => {
-    const manifest = mapManifest(sampleResults, {
-      source: { v: "someVeryLongValue:string" },
+    const manifest = mapManifest(sampleResult, {
+      source: { v: "__testLongValue:string" },
       format: {},
     });
 
@@ -71,10 +80,13 @@ describe("function mapManifest()", () => {
   });
 
   test("handles no results", () => {
-    const manifest = mapManifest([], {
-      source: {},
-      format: {},
-    });
+    const manifest = mapManifest(
+      { ...sampleResult, formats: [] },
+      {
+        source: {},
+        format: {},
+      }
+    );
 
     expect(manifest).toMatchObject({
       f: [],
@@ -82,7 +94,7 @@ describe("function mapManifest()", () => {
   });
 
   test("handles no metadata", () => {
-    const manifest = mapManifest(sampleResults, {
+    const manifest = mapManifest(sampleResult, {
       source: {},
       format: {},
     });

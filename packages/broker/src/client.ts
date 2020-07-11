@@ -1,5 +1,5 @@
 import { Metadata, Pipeline } from "@ipp/common";
-import { processPipeline } from "@ipp/core";
+import { executePipeline } from "@ipp/core";
 import { F_OK } from "constants";
 import { promises } from "fs";
 import { join, parse } from "path";
@@ -54,7 +54,7 @@ if (process.connected) {
         try {
           const image = await readFile(job.input);
           const formatedName = parse(job.input);
-          const results = await processPipeline(image, job.pipeline, {
+          const results = await executePipeline(image, job.pipeline, {
             originalName: formatedName.name,
             originalExt: formatedName.ext,
             originalHash: hashBuffer(image),
