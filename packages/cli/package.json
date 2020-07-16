@@ -51,14 +51,14 @@
     "pretty-error": "^2.1.1",
     "react": "^16.13.1",
     "rxjs": "^6.6.0",
-    "yargs": "^15.4.0"
+    "yargs": "^15.4.1"
   },
   "devDependencies": {
     "@ipp/testing": "^1.0.1",
     "@types/ink-spinner": "^3.0.0",
-    "@types/jest": "^26.0.3",
-    "@types/node": "^14.0.14",
-    "@types/react": "^16.9.41",
+    "@types/jest": "^26.0.4",
+    "@types/node": "^14.0.23",
+    "@types/react": "^16.9.43",
     "@types/yargs": "^15.0.5",
     "typescript": "^3.9.6"
   }

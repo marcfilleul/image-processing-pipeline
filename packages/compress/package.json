@@ -41,8 +41,8 @@
     "@types/imagemin-mozjpeg": "^8.0.0",
     "@types/imagemin-pngquant": "^7.0.0",
     "@types/imagemin-svgo": "^7.0.0",
-    "@types/jest": "^26.0.3",
-    "@types/node": "^14.0.14",
+    "@types/jest": "^26.0.4",
+    "@types/node": "^14.0.23",
     "typescript": "^3.9.6"
   }
 }

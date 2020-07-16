@@ -37,11 +37,11 @@
   ],
   "dependencies": {
     "@ipp/common": "^1.0.1",
-    "execa": "^4.0.2"
+    "execa": "^4.0.3"
   },
   "devDependencies": {
-    "@types/jest": "^26.0.3",
-    "@types/node": "^14.0.14",
+    "@types/jest": "^26.0.4",
+    "@types/node": "^14.0.23",
     "typescript": "^3.9.6"
   }
 }
