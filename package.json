@@ -13,7 +13,8 @@
     "clean:build": "rimraf \"./packages/*/*.tsbuildinfo\" \"./packages/*/dist\"",
     "fix:format": "prettier --write \"packages/*/src/**/*.{ts,tsx,json}\"",
     "fix:lint": "eslint . --fix --ext .ts,.tsx",
-    "start": "cd packages/cli && ts-node -r tsconfig-paths/register src",
+    "start": "cd packages/cli && node -r ts-node/register -r tsconfig-paths/register src/bin",
+    "start:debug": "cd packages/cli && node --inspect-brk -r ts-node/register -r tsconfig-paths/register src/bin",
     "test": "jest",
     "test:format": "prettier --check \"packages/*/src/**/*.{ts,tsx,json}\"",
     "test:lint": "eslint . --ext .ts,.tsx"
@@ -24,6 +25,7 @@
     "@typescript-eslint/eslint-plugin": "^3.5.0",
     "@typescript-eslint/parser": "^3.5.0",
     "eslint": "^7.4.0",
+    "eslint-plugin-react": "^7.20.3",
     "jest": "^26.1.0",
     "lerna": "^3.22.1",
     "prettier": "^2.0.5",
@@ -70,11 +72,13 @@
     "extends": [
       "eslint:recommended",
       "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended"
+      "plugin:@typescript-eslint/recommended",
+      "plugin:react/recommended"
     ],
     "rules": {
       "@typescript-eslint/no-use-before-define": "off",
-      "@typescript-eslint/no-explicit-any": "warn"
+      "@typescript-eslint/no-explicit-any": "warn",
+      "react/prop-types": "off"
     }
   },
   "prettier": {
@@ -86,17 +90,19 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/packages"
+    ],
     "collectCoverageFrom": [
       "packages/*/src/**/*.ts"
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/packages/cli",
-      "/packages/broker"
+      "/packages/broker/",
+      "/_old/"
     ],
     "coveragePathIgnorePatterns": [
-      "/node_modules/",
-      "/index.ts"
+      "/node_modules/"
     ],
     "globals": {
       "ts-jest": {
@@ -107,5 +113,6 @@
     "moduleNameMapper": {
       "^@ipp/(.*)$": "<rootDir>/packages/$1/src"
     }
-  }
+  },
+  "dependencies": {}
 }

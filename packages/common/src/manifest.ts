@@ -59,16 +59,82 @@ function mapMetadata(metadata: Metadata, mappings: StringMap): PrimitiveMap {
   const mappedMetadata: PrimitiveMap = {};
 
   for (const [key, template] of Object.entries(mappings)) {
-    const { value, limit } = extractValueLimit(template);
+    const mappedTemplate = mapTemplate(metadata, template);
 
-    if (typeof metadata[value] !== "undefined") {
-      const valueToMap = metadata[value];
-
-      mappedMetadata[key] = limit ? String(valueToMap).substr(0, limit) : valueToMap;
+    if (typeof mappedTemplate !== "undefined") {
+      mappedMetadata[key] = mappedTemplate;
     }
+
+    // const { value, limit } = extractValueLimit(template);
+
+    // if (typeof metadata[value] !== "undefined") {
+    //   const valueToMap = metadata[value];
+
+    //   mappedMetadata[key] = limit ? String(valueToMap).substr(0, limit) : valueToMap;
+    // }
   }
 
   return mappedMetadata;
+}
+
+/**
+ * Maps a string template of the form `string` or `string:number` to its corresponding
+ * metadata value, optionally limited to a certain length.
+ *
+ * @example
+ * mapTemplate({ format: { width: 1920 }}, "width:2"); // "19"
+ */
+export function mapTemplate(metadata: Metadata, template: string): PrimitiveValue | undefined {
+  const { selector, key, limit } = parseTemplate(template);
+  // const { value, limit } = extractValueLimit(template);
+
+  if (key && typeof metadata[key] !== "undefined") {
+    const value = metadata[key];
+    // TODO
+  }
+
+  const metadataValue = metadata[value];
+
+  if (typeof metadataValue !== "undefined") {
+    return limit ? String(metadataValue).substr(0, limit) : metadataValue;
+  }
+}
+
+interface ParsedTemplate {
+  selector?: string;
+  key?: string;
+  limit?: number;
+}
+
+/**
+ * Splits a template string into three components, the selector,
+ * the key and a numeric limit.
+ *
+ * Only the key is required, the others may be omitted.
+ * Returns an empty object if the template is invalid
+ * to allow destructuring.
+ *
+ * @example
+ * parseTemplate("format.hash:8");
+ * // { selector: "format", key: "hash", limit: 8 }
+ */
+function parseTemplate(value: string): ParsedTemplate {
+  const matcher = /^([a-zA-Z0-9_-]+\.)?([a-zA-Z0-9_-]+)(:[0-9]+)?$/;
+
+  const result = matcher.exec(value);
+  if (result === null) return {};
+
+  const parsed: ParsedTemplate = {
+    key: result[2],
+  };
+
+  if (result[1]) parsed.selector = result[1];
+  if (result[3]) {
+    const int = parseInt(result[3]);
+    if (!isNaN(int)) parsed.limit = int;
+  }
+
+  return parsed;
 }
 
 /** Splits a colon separated string into its value and its number limit
@@ -77,15 +143,15 @@ function mapMetadata(metadata: Metadata, mappings: StringMap): PrimitiveMap {
  * extractValueLimit("text:5"); // { value: "text", limit: 5 }
  * extractValueLimit("text");   // { value: "text" }
  */
-function extractValueLimit(value: string): { value: string; limit?: number } {
-  const index = value.indexOf(":");
-  if (index === -1) return { value };
+// function extractValueLimit(value: string): { value: string; limit?: number } {
+//   const index = value.indexOf(":");
+//   if (index === -1) return { value };
 
-  const limit = parseInt(value.substr(index + 1), 10);
-  if (!limit) return { value: value.substr(0, index) };
+//   const limit = parseInt(value.substr(index + 1), 10);
+//   if (!limit) return { value: value.substr(0, index) };
 
-  return { value: value.substr(0, index), limit: limit };
-}
+//   return { value: value.substr(0, index), limit: limit };
+// }
 
 /** Returns undefined if the object has no properties */
 function voidIfEmpty<T extends Record<string, unknown>>(obj: T): T | undefined {

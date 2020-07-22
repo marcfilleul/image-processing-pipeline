@@ -7,5 +7,5 @@
     "jsx": "react",
     "resolveJsonModule": true
   },
-  "references": [{ "path": "../broker" }, { "path": "../common" }, { "path": "../testing" }]
+  "references": [{ "path": "../common" }, { "path": "../core" }, { "path": "../testing" }]
 }

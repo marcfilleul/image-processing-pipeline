@@ -1,35 +1,34 @@
-import { promises } from "fs";
-import { join } from "path";
 import PrettyError from "pretty-error";
+import { argv } from "process";
 
-export type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
+export const BULLET = "\u25cf";
 
-const MAX_ITEMS = 3;
+const MAX_ITEMS = isVerbose() ? 16 : 2;
 const PADDING = 2;
 
 const prettyError = new PrettyError().setMaxItems(MAX_ITEMS);
 
-/** Reads the version from package.json */
-export async function getVersion(): Promise<string | null> {
-  try {
-    const packagePath = join(__dirname, "..", "package.json");
-    const file = await promises.readFile(packagePath);
-    const json = JSON.parse(file.toString());
-
-    if (typeof json.version === "string") return json.version;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 /** Format an error into a prettier string */
-export function formatError(err: Error): string {
+export function prettifyError(err: Error): string {
   return prettyError.render(err);
 }
 
-/** Prints lines of text to stdout with two spaces of indentation */
-export function printPadded(...text: string[]): void {
-  for (const item of text)
-    process.stdout.write(" ".repeat(PADDING) + item.replace(/\n/g, "\n" + " ".repeat(PADDING)) + "\n");
+/** Indents every new line with specified padding */
+export function pad(text: string, padding: number = PADDING): string {
+  return text
+    .split("\n")
+    .map((x) => (x.length > 0 ? " ".repeat(padding) + x : x))
+    .join("\n");
+}
+
+function isVerbose(): boolean {
+  for (const flag of ["-v", "--verbose"]) {
+    if (argv.indexOf(flag) !== -1) return true;
+  }
+
+  return false;
+}
+
+export async function sleep(ms: number): Promise<void> {
+  return new Promise((res) => setTimeout(res, ms));
 }

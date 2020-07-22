@@ -37,7 +37,6 @@
   "devDependencies": {
     "@types/jest": "^26.0.4",
     "@types/node": "^14.0.23",
-    "@types/sharp": "^0.25.0",
-    "typescript": "^3.9.6"
+    "@types/sharp": "^0.25.0"
   }
 }

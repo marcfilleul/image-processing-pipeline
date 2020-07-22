@@ -1,6 +1,6 @@
-import { DataObject, sampleMetadata, Metadata } from "@ipp/common";
+import { DataObject, sampleMetadata } from "@ipp/common";
 import { randomBytes } from "crypto";
-import sharp, { Sharp, OutputInfo } from "sharp";
+import sharp, { OutputInfo, Sharp } from "sharp";
 import { ResizePipe } from "./resize";
 
 jest.mock("sharp");
@@ -11,7 +11,7 @@ describe("built-in resize pipe", () => {
   /** The input value */
   const data: DataObject = {
     buffer: randomBytes(8),
-    metadata: sampleMetadata(256, 256, "jpeg"),
+    metadata: sampleMetadata(256, "jpeg"),
   };
 
   const resizeOptions = { width: 128, height: 128 };
