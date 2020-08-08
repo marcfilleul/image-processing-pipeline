@@ -8,7 +8,10 @@ import { PrimitivePipe } from "./primitive";
 
 jest.mock("execa");
 const actualExeca = jest.requireActual("execa");
-const execaMock = (execa as unknown) as jest.Mock<{ stdout: string }, [string, string[], { input: Buffer }]>;
+const execaMock = (execa as unknown) as jest.Mock<
+  { stdout: string },
+  [string, string[], { input: Buffer }]
+>;
 
 describe("PrimitivePipe", () => {
   /* -- Data -- */
@@ -33,7 +36,10 @@ describe("PrimitivePipe", () => {
       buffer: Buffer.from(svg),
       metadata: {
         ...data.metadata,
-        format: "svg",
+        current: {
+          ...data.metadata.current,
+          format: "svg",
+        },
       },
     });
 
@@ -57,11 +63,17 @@ describe("PrimitivePipe", () => {
     ];
 
     for (const [format, resolve] of formats) {
-      const result = PrimitivePipe({ ...data, metadata: { ...data.metadata, format } });
+      const result = PrimitivePipe({
+        ...data,
+        metadata: { ...data.metadata, current: { ...data.metadata.current, format } },
+      });
       if (resolve) {
         await expect(result).resolves.toBeTruthy();
       } else {
-        await expect(result).rejects.toHaveProperty("message", "Unsupported image format: " + format);
+        await expect(result).rejects.toHaveProperty(
+          "message",
+          `Unsupported image format: "${format}"`
+        );
       }
     }
   });
@@ -79,7 +91,8 @@ describe("PrimitivePipe", () => {
   describe("[E2E] End to End testing", () => {
     test("processes a PNG pixel", async () => {
       execaMock.mockImplementationOnce(actualExeca);
-      const pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
+      const pixel =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
 
       const data = {
         buffer: Buffer.from(pixel, "base64"),
@@ -90,7 +103,10 @@ describe("PrimitivePipe", () => {
       await expect(result).resolves.toBeTruthy();
 
       const r = (await result) as DataObject;
-      expect(r.metadata).toMatchObject({ ...data.metadata, format: "svg" });
+      expect(r.metadata).toMatchObject({
+        ...data.metadata,
+        current: { ...data.metadata.current, format: "svg" },
+      });
 
       // Check whether the general form is OK
       const image = r.buffer.toString();

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema",
-  "$id": "https://raw.githubusercontent.com/MarcusCemes/image-processing-pipeline/master/packages/cli/src/schema/pipeline.json",
+  "$id": "https://raw.githubusercontent.com/MarcusCemes/image-processing-pipeline/master/packages/common/src/schema/pipeline.json",
   "title": "Pipeline",
   "description": "The Pipeline object used by the Image Processing Pipeline",
 
@@ -10,6 +10,7 @@
     "description": "A single parallel processing branch of a Pipeline object",
     "type": "object",
     "required": ["pipe"],
+    "additionalProperties": false,
     "properties": {
       "pipe": {
         "oneOf": [
@@ -46,10 +47,7 @@
         ]
       },
       "then": {
-        "type": "array",
-        "items": {
-          "$ref": "#"
-        }
+        "$ref": "#"
       }
     }
   }

@@ -33,14 +33,15 @@
   "dependencies": {
     "@ipp/common": "^1.0.1",
     "@ipp/core": "^1.0.3",
+    "ajv": "^6.12.3",
     "loader-utils": "^2.0.0",
     "schema-utils": "^2.7.0"
   },
   "devDependencies": {
     "@ipp/testing": "^1.0.1",
-    "@types/jest": "^26.0.4",
+    "@types/jest": "^26.0.9",
     "@types/loader-utils": "^2.0.1",
-    "@types/node": "^14.0.23",
+    "@types/node": "^14.0.27",
     "@types/webpack": "^4.41.21"
   }
 }

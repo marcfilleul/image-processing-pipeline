@@ -17,10 +17,10 @@ export interface CompressOptions {
 }
 
 export const CompressPipe: Pipe<CompressOptions> = async (data, options = {}) => {
-  const plugin = resolvePlugin(data.metadata.format, options);
+  const plugin = resolvePlugin(data.metadata.current.format, options);
 
   return {
-    buffer: typeof plugin === "function" ? await plugin(data.buffer as Buffer) : data.buffer,
+    buffer: typeof plugin === "function" ? await plugin(data.buffer) : data.buffer,
     metadata: data.metadata,
   };
 };

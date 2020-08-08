@@ -17,13 +17,22 @@ describe("built-in ConvertPipe", () => {
     ...baseData,
     metadata: {
       ...baseData.metadata,
-      format: current,
-      originalFormat: original,
+      current: {
+        ...baseData.metadata.current,
+        format: current,
+      },
+      source: {
+        ...baseData.metadata.source,
+        format: original,
+      },
     },
   });
 
   /** Factory for the return value of the mocked sharp.toBuffer() function */
-  const toBufferFactory = (data: DataObject, format: string): UnPromise<ReturnType<Sharp["toBuffer"]>> => ({
+  const toBufferFactory = (
+    data: DataObject,
+    format: string
+  ): UnPromise<ReturnType<Sharp["toBuffer"]>> => ({
     data: data.buffer,
     info: {
       width: 256,
@@ -54,7 +63,9 @@ describe("built-in ConvertPipe", () => {
 
     const result = ConvertPipe(data, { format: to });
 
-    await expect(result).resolves.toMatchObject<DataObject>(dataWithFormats("__originalFormat", to));
+    await expect(result).resolves.toMatchObject<DataObject>(
+      dataWithFormats("__originalFormat", to)
+    );
 
     expect(toFormatMock).toHaveBeenCalledWith(to, void 0);
     expect(toBufferMock).toHaveBeenCalled();
@@ -79,26 +90,30 @@ describe("built-in ConvertPipe", () => {
   });
 
   describe("dynamic conversions", () => {
-    /**
-     * It doesn't matter what or if it's possible, as long as the pipe
-     * attempts to convert back to the original format
-     */
+    /** The existence of a format is not tested, only the attempt to convert */
     test("converts to original format", async () => {
       const data = dataWithFormats("__originalFormat", "jpeg");
-      toBufferMock.mockImplementationOnce(async () => toBufferFactory(data, data.metadata.originalFormat));
+      toBufferMock.mockImplementationOnce(async () =>
+        toBufferFactory(data, data.metadata.source.format)
+      );
       const result = ConvertPipe(data, { format: "original" });
 
-      await expect(result).resolves.toMatchObject<DataObject>(dataWithFormats("__originalFormat", "__originalFormat"));
+      await expect(result).resolves.toMatchObject<DataObject>(
+        dataWithFormats("__originalFormat", "__originalFormat")
+      );
 
       // Expect format to have changed
-      expect(((await result) as DataObject).metadata.format).not.toBe(data.metadata.format);
+      expect(((await result) as DataObject).metadata.format).not.toBe(data.metadata.current.format);
     });
   });
 
   /** Must know WHAT format to convert to */
   test("requires a format option", async () => {
     const data = dataWithFormats("jpeg", "jpeg");
-    await expect(ConvertPipe(data, {} as any)).rejects.toHaveProperty("message", 'Missing "format" option');
+    await expect(ConvertPipe(data, {} as any)).rejects.toHaveProperty(
+      "message",
+      'Missing "format" option'
+    );
   });
 
   /** Check if special conversion parameters are passed to sharp */

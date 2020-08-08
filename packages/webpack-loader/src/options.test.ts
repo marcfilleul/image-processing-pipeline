@@ -19,6 +19,6 @@ describe("function checkOptions()", () => {
   });
 
   test("requires a pipeline", () => {
-    expect(() => checkOptions({})).toThrow("Invalid configuration object");
+    expect(() => checkOptions({})).toThrow(/Invalid config/);
   });
 });

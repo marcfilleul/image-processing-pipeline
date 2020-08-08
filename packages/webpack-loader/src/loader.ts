@@ -5,7 +5,8 @@ import { checkOptions } from "./options";
 import { runtime } from "./runtime";
 
 export const ippLoader: loader.Loader = function ippLoader(source, map) {
-  if (!isBuffer(source)) throw new Error("Source must be a buffer. This error most likely is caused by webpack.");
+  if (!isBuffer(source))
+    throw new Error("Source must be a buffer. This error most likely is caused by webpack.");
 
   // Create async loader
   const callback = this.async();

@@ -1,4 +1,4 @@
-import { Args, validateArgs, parseArgs } from "./args";
+import { Args, parseArgs, validateArgs } from "./args";
 import { Config, getConfig } from "./config";
 
 /** Parses CLI flags and loads the configuration */

@@ -45,8 +45,9 @@ export const PrimitivePipe: Pipe<Partial<PrimitivePipeOptions>> = async (data, o
     ...(options || {}),
   };
 
-  if (SUPPORTED_FORMATS.indexOf(data.metadata.format) === -1)
-    throw new PipeException("Unsupported image format: " + data.metadata.format);
+  const format = data.metadata.current.format;
+  if (!SUPPORTED_FORMATS.includes(format))
+    throw new PipeException(`Unsupported image format: "${format}"`);
 
   const flags = [];
   flags.push("-i", "-");
@@ -63,7 +64,10 @@ export const PrimitivePipe: Pipe<Partial<PrimitivePipeOptions>> = async (data, o
     buffer: Buffer.from(stdout),
     metadata: {
       ...data.metadata,
-      format: "svg",
+      current: {
+        ...data.metadata.current,
+        format: "svg",
+      },
     },
   };
 };

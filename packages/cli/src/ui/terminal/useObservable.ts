@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Observable } from "rxjs";
 
-type ObservableStatus = "waiting" | "open" | "error" | "complete";
+export type ObservableStatus = "waiting" | "open" | "error" | "complete";
 
 /** Subscribes to an observable and triggers a render when a new state is pushed */
 export function useObservable<T>(observable: Observable<T> | undefined): [ObservableStatus, T?] {

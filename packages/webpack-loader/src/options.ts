@@ -1,8 +1,6 @@
-import { Pipeline, ManifestMappings } from "@ipp/common";
-import validate from "schema-utils";
+import { ManifestMappings, Pipeline, PipelineSchema } from "@ipp/common";
 import { Schema } from "schema-utils/declarations/validate";
-
-const NAME = "IPP Loader";
+import Ajv from "ajv";
 
 interface BasicWebpackOptions {
   context?: string;
@@ -17,7 +15,6 @@ export interface Options extends BasicWebpackOptions {
   pipeline: Pipeline;
 }
 
-// TODO import common schema for pipeline?
 const SCHEMA: Schema = {
   $schema: "http://json-schema.org/draft-07/schema#",
   type: "object",
@@ -59,8 +56,7 @@ const SCHEMA: Schema = {
     },
     pipeline: {
       $schema:
-        "https://raw.githubusercontent.com/MarcusCemes/image-processing-pipeline/master/packages/cli/src/config/schema.json",
-      type: "array",
+        "https://raw.githubusercontent.com/MarcusCemes/image-processing-pipeline/master/packages/common/src/schema/pipeline.json",
     },
     regExp: {
       type: "object",
@@ -76,6 +72,12 @@ const DEFAULT_OPTIONS: Partial<Options> = {
 
 export function checkOptions(options: Partial<Options>): Options {
   const merged = { ...DEFAULT_OPTIONS, ...options };
-  validate(SCHEMA, merged, { name: NAME });
+
+  const ajv = new Ajv({ allErrors: true });
+  ajv.addSchema(PipelineSchema);
+
+  const valid = ajv.validate(SCHEMA, merged);
+  if (!valid) throw Error("Invalid config:\n" + ajv.errorsText());
+
   return merged as Options;
 }

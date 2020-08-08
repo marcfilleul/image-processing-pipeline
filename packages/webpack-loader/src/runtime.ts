@@ -1,4 +1,4 @@
-import { ManifestItem, mapManifest, Metadata, Pipeline, PipelineFormat } from "@ipp/common";
+import { createManifestItem, ManifestItem, Metadata, Pipeline, PipelineFormat } from "@ipp/common";
 import { executePipeline } from "@ipp/core";
 import { interpolateName } from "loader-utils";
 import { join } from "path";
@@ -54,12 +54,12 @@ export async function runtime(
   });
 
   return typeof options.manifest !== "undefined"
-    ? mapManifest(result, options.manifest)
+    ? createManifestItem(result, options.manifest)
     : {
         src: determineSrc(formats),
         srcset: generateMimeMap(formats),
-        width: result.source.metadata.width,
-        height: result.source.metadata.height,
+        width: result.source.metadata.current.width,
+        height: result.source.metadata.current.height,
       };
 }
 
@@ -69,10 +69,10 @@ function generateMimeMap(formats: FileFormat[]): Record<string, string> {
   const srcset: Record<string, [string, number][]> = {};
 
   for (const format of formats) {
-    const mime = formatToMime(format.data.metadata.format);
+    const mime = formatToMime(format.data.metadata.current.format);
     if (typeof srcset[mime] === "undefined") srcset[mime] = [];
 
-    srcset[mime].push([format.file, format.data.metadata.width]);
+    srcset[mime].push([format.file, format.data.metadata.current.width]);
   }
 
   const mimeMap: Record<string, string> = {};
@@ -107,16 +107,23 @@ function determineSrc(formats: FileFormat[]): string | undefined {
  * is better suited for the `src` parameter.
  */
 function betterMetadata(reference: Metadata, candidate: Metadata): boolean {
+  const referenceFormat = reference.current.format;
+  const referenceWidth = reference.current.width;
+  const candidateFormat = candidate.current.format;
+  const candidateWidth = candidate.current.width;
+
   // Prefer JPEG
-  if (reference.format !== "jpeg" && candidate.format === "jpeg") return true;
-  if (reference.format === "jpeg" && candidate.format !== "jpeg") return false;
+  if (referenceFormat !== "jpeg" && candidateFormat === "jpeg") return true;
+  if (referenceFormat === "jpeg" && candidateFormat !== "jpeg") return false;
 
   // Otherwise prefer WebP
-  if (reference.format === "webp" && candidate.format !== "webp" && candidate.format !== "jpeg") return false;
-  if (reference.format !== "webp" && reference.format !== "jpeg" && candidate.format === "webp") return true;
+  if (referenceFormat === "webp" && candidateFormat !== "webp" && candidateFormat !== "jpeg")
+    return false;
+  if (referenceFormat !== "webp" && referenceFormat !== "jpeg" && candidateFormat === "webp")
+    return true;
 
   // Otherwise prefer size
-  return Math.abs(PREFERRED_SIZE - candidate.width) <= Math.abs(PREFERRED_SIZE - reference.width);
+  return Math.abs(PREFERRED_SIZE - candidateWidth) <= Math.abs(PREFERRED_SIZE - referenceWidth);
 }
 
 /** Generates the resulting filename using webpack's loader utilities */
@@ -128,7 +135,7 @@ function generateFilename(ctx: loader.LoaderContext, options: Options, source: B
   });
 }
 
-const MIME_MAP: Record<Metadata["format"], string> = {
+const MIME_MAP: { [index: string]: string } = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
@@ -137,6 +144,6 @@ const MIME_MAP: Record<Metadata["format"], string> = {
 };
 
 /** A simple extension to MIME converter */
-function formatToMime(format: Metadata["format"]): string {
+function formatToMime(format: string): string {
   return MIME_MAP[format] || "application/octet-stream";
 }

@@ -1,14 +1,10 @@
-import { Stage, State, Status, Task } from "cli/src/model/state";
 import { cross, pointer, square, tick } from "figures";
-import { Box, Color, ColorProps, Text } from "ink";
+import { Box, Static, Text, TextProps } from "ink";
 import Spinner from "ink-spinner";
 import React, { ReactNode } from "react";
-import { Observable } from "rxjs";
-import { useObservable } from "./useObservable";
-
-type Mutable<T> = {
-  -readonly [P in keyof T]: T[P];
-};
+import { Stage, State, Status, Task } from "~/model/state";
+import { UiContext } from "../ui";
+import { ObservableStatus, useObservable } from "./useObservable";
 
 const WIDTH = 40;
 
@@ -20,114 +16,195 @@ const Layout: React.FC = ({ children }) => (
   </Box>
 );
 
-const Tasks: React.FC<{ tasks: Task[] }> = ({ tasks }) => (
-  <>
-    {tasks.map((t) => (
-      <Box key={t.id}>
-        {t.status === Status.PENDING ? (
-          <Color cyan>
-            <Spinner />
-          </Color>
-        ) : t.status === Status.ERROR ? (
-          <Color red>{cross}</Color>
-        ) : t.status === Status.COMPLETE ? (
-          <Color green>{tick}</Color>
-        ) : (
-          " "
-        )}
-        <Box marginLeft={1}>
-          <Color grey={t.status === Status.WAITING}>{t.text}</Color>
+const rawBanner = `._______________________
+|   \\______   \\______   \\
+|   ||     ___/|     ___/
+|   ||    |    |    |
+|___||____|    |____|`;
+
+const Banner: React.FC = () => (
+  <Static items={[null]}>
+    {() => (
+      <Box key="banner" flexDirection="column" marginY={1} paddingLeft={8}>
+        {rawBanner.split("\n").map((x, i) => (
+          <Box key={i.toString()}>
+            <Text>{x}</Text>
+          </Box>
+        ))}
+
+        <Box marginTop={1}>
+          <Text>Image Processing Pipeline</Text>
+        </Box>
+
+        <Box paddingLeft={2}>
+          <Text color="grey">https://git.io/JJZdv</Text>
         </Box>
       </Box>
-    ))}
+    )}
+  </Static>
+);
+
+const Tasks: React.FC<{ tasks: Task[] }> = ({ tasks }) => (
+  <>
+    {tasks.map((t) => {
+      const [colour, icon]: [string | undefined, ReactNode] =
+        t.status === Status.PENDING
+          ? ["cyan", <Spinner key="spinner" />]
+          : t.status === Status.ERROR
+          ? ["red", cross]
+          : t.status === Status.COMPLETE
+          ? ["green", tick]
+          : [void 0, " "];
+
+      return (
+        <Box key={t.id}>
+          <Text color={colour}>{icon}</Text>
+          <Box marginLeft={1}>
+            <Text color={t.status === Status.WAITING ? "grey" : void 0}>{t.text}</Text>
+          </Box>
+        </Box>
+      );
+    })}
   </>
 );
 
-const StageIndicator: React.FC<{ stage: Stage; completed: boolean }> = ({ stage, completed }) => {
-  const props: Mutable<ColorProps> = {};
-  let text: ReactNode | null = null;
-
+const StageIndicator: React.FC<{
+  stage: Stage;
+  completed: boolean;
+  message: string | undefined;
+}> = ({ stage, completed, message }) => {
   switch (stage) {
     case Stage.DONE:
-      text = "Complete";
-      props.greenBright = true;
-      break;
+      return (
+        <Text bold color="greenBright">
+          {pointer} Complete
+        </Text>
+      );
 
     case Stage.ERROR:
-      text = "Error";
-      props.redBright = true;
-      break;
+      return (
+        <Box flexDirection="column">
+          <Box>
+            <Text bold color="red">
+              {pointer} Error
+            </Text>
+          </Box>
+          {message && (
+            <Box marginTop={1} width={80}>
+              <Text color="red">{message}</Text>
+            </Box>
+          )}
+        </Box>
+      );
 
     case Stage.INTERRUPT:
-      text = (
+      return (
         <Box flexDirection="column">
-          <Text>Interrupt</Text>
+          <Text bold color="#FF851B">
+            {pointer} Interrupt
+          </Text>
           {!completed && (
-            <Text>
+            <Text color="#FF851B">
               Press <Text bold>Ctrl-C</Text> to force exit
             </Text>
           )}
         </Box>
       );
-      props.keyword = "orange";
-      break;
+
+    default:
+      return null;
   }
-
-  if (!text) return null;
-
-  return (
-    <Color {...props}>
-      {pointer} {text}
-    </Color>
-  );
 };
 
-export const ProgressBar: React.FC<{ width: number; progress: number }> = ({ width, progress }) => {
-  const clamped = Math.max(0, Math.min(1, progress));
-  const progressText = `${Math.round(clamped * 100)}%`.padStart(4);
+const ProgressBar: React.FC<{ width: number; progress: number }> = ({ width, progress }) => {
+  const parsedProgress = isNaN(progress) ? 0 : progress;
+  const clampedProgress = Math.max(0, Math.min(1, parsedProgress));
+
+  const progressText = `${Math.round(clampedProgress * 100)}%`.padStart(4);
 
   const internalWidth = width - 4;
-  const dots = Math.max(0, Math.min(internalWidth, Math.round(progress * internalWidth)));
+  const dots = Math.max(0, Math.min(internalWidth, Math.round(clampedProgress * internalWidth)));
   const space = internalWidth - dots;
 
   return (
-    <Box width={width}>
-      {square.repeat(dots)}
-      {" ".repeat(space)} {progressText}
+    <Box>
+      <Text>
+        {square.repeat(dots)}
+        {" ".repeat(space)} {progressText}
+      </Text>
     </Box>
   );
 };
 
-export const Terminal: React.FC<{ state: Observable<State> }> = ({ state: observable }) => {
-  const [status, state] = useObservable(observable);
+const Exceptions: React.FC<{ count: number }> = ({ count }) => (
+  <Box flexDirection="column" marginBottom={1}>
+    <Box>
+      <Text bold color="red">
+        {count} images failed to process
+      </Text>
+    </Box>
+    <Box>
+      <Text color="red">
+        More information can be found in the generated <Text bold>errors.json</Text>
+      </Text>
+    </Box>
+  </Box>
+);
+
+const StateView: React.FC<{ state?: State }> = ({ state }) => {
+  if (!state) return null;
 
   return (
     <>
-      {state && (
+      {state && state.stage !== Stage.ERROR && (
+        <Layout>
+          <Tasks tasks={state.tasks} />
+        </Layout>
+      )}
+      {state && state.stage === Stage.PROCESSING && (
         <>
-          {state.stage !== Stage.ERROR && (
-            <Layout>
-              <Tasks tasks={state.tasks} />
-            </Layout>
-          )}
-          {state.stage === Stage.PROCESSING && (
-            <Box marginTop={1} width={WIDTH} justifyContent="center">
-              <ProgressBar
-                width={20}
-                progress={
-                  (state.statistics.images.completed + state.statistics.images.failed) / state.statistics.images.total
-                }
-              />
-            </Box>
-          )}
+          <Box marginTop={1} width={WIDTH} justifyContent="center">
+            <ProgressBar
+              width={20}
+              progress={
+                (state.stats.images.completed + state.stats.images.failed) /
+                state.stats.images.total
+              }
+            />
+          </Box>
         </>
       )}
+    </>
+  );
+};
 
-      {status === "complete" && (
-        <Box flexDirection="column" marginTop={1} paddingLeft={8}>
-          {state && <StageIndicator stage={state.stage} completed={status === Status.COMPLETE} />}
-        </Box>
+const Completion: React.FC<{ state?: State; status: ObservableStatus }> = ({ state, status }) => {
+  if (!state || status !== "complete") return null;
+
+  return (
+    <Box flexDirection="column" marginTop={1} marginBottom={1} paddingLeft={8}>
+      {state && (
+        <>
+          {state.stats.images.failed > 0 && <Exceptions count={state.stats.images.failed} />}
+          <StageIndicator
+            stage={state.stage}
+            completed={status === Status.COMPLETE}
+            message={state.message}
+          />
+        </>
       )}
+    </Box>
+  );
+};
+
+export const Terminal: React.FC<{ ctx: UiContext }> = ({ ctx }) => {
+  const [status, state] = useObservable(ctx.state);
+
+  return (
+    <>
+      <Banner />
+      <StateView state={state} />
+      <Completion state={state} status={status} />
     </>
   );
 };

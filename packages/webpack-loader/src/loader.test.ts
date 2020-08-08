@@ -58,7 +58,11 @@ describe("function ippLoader()", () => {
     ippLoader.bind(ctx)(source, void 0);
     await callbackCalled;
 
-    expect(callback).toHaveBeenCalledWith(null, `module.exports = { default: {"__runtimeExport":true} };\n`, void 0);
+    expect(callback).toHaveBeenCalledWith(
+      null,
+      `module.exports = { default: {"__runtimeExport":true} };\n`,
+      void 0
+    );
   });
 
   // The loader throws synchronously

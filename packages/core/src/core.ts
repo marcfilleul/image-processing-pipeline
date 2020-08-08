@@ -1,6 +1,8 @@
 import {
+  BaseMetadata,
   DataObject,
   Metadata,
+  MetadataFragment,
   Pipe,
   Pipeline,
   PipelineBranch,
@@ -9,6 +11,7 @@ import {
   PipelineResult,
   PrimitiveValue,
 } from "@ipp/common";
+import { produce } from "immer";
 import sharp from "sharp";
 import { hash } from "./hash";
 import { PIPES } from "./pipes";
@@ -24,24 +27,35 @@ import { PIPES } from "./pipes";
 export async function executePipeline(
   pipeline: Pipeline,
   source: Buffer,
-  initialMetadata?: Record<string, PrimitiveValue>
+  sourceMetadata: MetadataFragment = {}
 ): Promise<PipelineResult> {
-  const metadata = { ...(await generateMetadata(source)), ...initialMetadata } as Metadata;
+  const generatedMetadata = await generateMetadata(source);
+  const fragment = {
+    ...generatedMetadata,
+    ...sourceMetadata,
+  };
+
+  const metadata: Metadata = {
+    current: fragment,
+    source: fragment,
+  };
 
   const dataObject: DataObject = { buffer: source, metadata };
 
   const formats = await processPipeline(pipeline, dataObject);
-  const formatsWithHash = generateHashes(formats);
 
   return {
     source: dataObject,
-    formats: formatsWithHash,
+    formats: formats,
   };
 }
 
 /**
  * Runs the data object through a pipeline, yielding a collection of pipeline results */
-async function processPipeline(pipeline: Pipeline, formats: DataObject | DataObject[]): Promise<PipelineFormats> {
+async function processPipeline(
+  pipeline: Pipeline,
+  formats: DataObject | DataObject[]
+): Promise<PipelineFormats> {
   const groupedFormats: Promise<PipelineFormats>[] = [];
 
   for (const format of wrapInArray(formats)) {
@@ -63,7 +77,10 @@ async function processBranch(branch: PipelineBranch, data: DataObject): Promise<
   const pipeResults = await processPipe(pipe, data, name, branch.options);
 
   if (branch.save) {
-    const pipeFormats = wrapInArray(pipeResults).map((data) => ({ data, saveKey: branch.save as PrimitiveValue }));
+    const pipeFormats = wrapInArray(pipeResults).map((data) => ({
+      data,
+      saveKey: branch.save as PrimitiveValue,
+    }));
     groupedFormats.push(...pipeFormats);
   }
 
@@ -83,29 +100,35 @@ async function processPipe(
   options?: any
 ): Promise<DataObject | DataObject[]> {
   try {
-    return (await pipe(data, options)) as DataObject | DataObject[]; // remove immutable status
+    const result = await pipe(data, options);
+
+    if (!result) return [];
+
+    if (result instanceof Array) {
+      return result.map(updateHash);
+    }
+
+    return updateHash(result);
   } catch (err) {
     throw new PipelineException(`[${name}] ${err.message}`);
   }
 }
 
 /** Calculates some basic initial metadata for the pipeline process, such as the format */
-async function generateMetadata(input: Buffer): Promise<Metadata> {
+async function generateMetadata(input: Buffer): Promise<BaseMetadata> {
   try {
     const { width, height, channels, format } = await sharp(input).metadata();
     if (!width || !height || !channels || !format) throw new Error("missing properties");
     const inputHash = hash(input);
-    return {
+
+    const baseMeta: BaseMetadata = {
       width,
       height,
       channels,
       format,
       hash: inputHash,
-      originalWidth: width,
-      originalHeight: height,
-      originalFormat: format,
-      originalHash: inputHash,
     };
+    return baseMeta;
   } catch (err) {
     throw new PipelineException(`Metadata error: ${err.message || err}`);
   }
@@ -113,36 +136,38 @@ async function generateMetadata(input: Buffer): Promise<Metadata> {
 
 /** Dynamically attempts to resolve the given pipe using the import() function */
 async function resolvePipe(pipe: PipelineBranch["pipe"]): Promise<{ pipe: Pipe; name: string }> {
+  const serialisedPipe = typeof pipe === "string" ? pipe : JSON.stringify(pipe);
+
   try {
     if (typeof pipe === "string") return { pipe: PIPES[pipe], name: pipe };
 
     if (typeof pipe === "object" && pipe !== null && "resolve" in pipe) {
       const importedPipe = await import(pipe.resolve);
-      if (pipe.module) return { pipe: importedPipe[pipe.module], name: `${pipe.resolve}.${pipe.module}` };
+      if (pipe.module) {
+        return { pipe: importedPipe[pipe.module], name: `${pipe.resolve}.${pipe.module}` };
+      }
+
+      if (typeof importedPipe !== "function") {
+        throw new PipelineException(`Could not import ${serialisedPipe}, not a function`);
+      }
+
       return { pipe: importedPipe, name: pipe.resolve };
     }
 
-    if (typeof pipe === "function") return { pipe, name: pipe.name || "[Function]" };
+    if (typeof pipe === "function") return { pipe, name: pipe.name };
 
     throw new PipelineException("Unknown pipe resolution scheme");
   } catch (err) {
     if (err instanceof PipelineException) throw err;
-    throw new PipelineException(`Could not resolve pipe: ${pipe}`);
+    throw new PipelineException(`Could not resolve pipe: ${serialisedPipe}`).extend(err);
   }
 }
 
-/** Computes hashes for each pipeline format */
-function generateHashes(results: PipelineFormats): PipelineFormats {
-  return results.map((f) => ({
-    ...f,
-    data: {
-      ...f.data,
-      metadata: {
-        ...f.data.metadata,
-        hash: hash(f.data.buffer),
-      },
-    },
-  }));
+/** Generates a new hash from a DataObject and returns a new DataObject */
+function updateHash(data: DataObject): DataObject {
+  return produce(data, (draft) => {
+    draft.metadata.current.hash = hash(data.buffer);
+  });
 }
 
 /** Wraps an item in an array, or returns the item if it is an array

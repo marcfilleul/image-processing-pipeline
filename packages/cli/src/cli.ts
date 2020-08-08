@@ -1,11 +1,16 @@
+import { Exception } from "@ipp/common";
+import { createWriteStream } from "fs";
+import { join } from "path";
+import { version } from "./constants";
 import { createInterruptHandler, InterruptException, InterruptHandler } from "./lib/interrupt";
+import { saveManifest } from "./lib/manifest";
 import { processImages } from "./lib/process";
 import { saveImages } from "./lib/save_images";
 import { searchForImages } from "./lib/search";
 import { Config } from "./load/config";
 import { createState, Stage, StateContext } from "./model/state";
-import { UI, UiContext } from "./ui";
-import TerminalUi from "./ui/terminal";
+import { UI, UiInstance } from "./ui";
+import { TerminalUi } from "./ui/";
 
 const DEFAULT_UI = TerminalUi;
 
@@ -15,12 +20,12 @@ export interface CliOptions {
 
 export interface CliContext {
   interrupt: InterruptHandler;
-  ui: UiContext;
+  ui: UiInstance;
   state: StateContext;
 }
 
 export async function startCli(config: Config, options: CliOptions = {}): Promise<void> {
-  const ctx = createContext(config.concurrency, options.ui);
+  const ctx = createContext(config.concurrency, version, options.ui);
 
   try {
     ctx.state.update((state) => (state.stage = Stage.PROCESSING));
@@ -32,9 +37,13 @@ export async function startCli(config: Config, options: CliOptions = {}): Promis
     const paths = config.input instanceof Array ? config.input : [config.input];
     const images = await searchForImages(ctx, paths);
     const results = processImages(ctx, config.pipeline, images, config.concurrency);
-    await saveImages(ctx, config, results);
+    const saves = saveImages(ctx, config, results);
+    const exceptions = saveManifest(ctx, config, saves);
+    await writeExceptions(config, exceptions);
 
-    ctx.state.update((state) => (state.stage = ctx.interrupt.rejected() ? Stage.INTERRUPT : Stage.DONE));
+    ctx.state.update(
+      (state) => (state.stage = ctx.interrupt.rejected() ? Stage.INTERRUPT : Stage.DONE)
+    );
   } catch (err) {
     if (!(err instanceof InterruptException)) {
       ctx.state.update((state) => {
@@ -54,20 +63,45 @@ export async function startCli(config: Config, options: CliOptions = {}): Promis
   }
 }
 
-function createContext(concurrency: number, ui?: UI): CliContext {
+function createContext(concurrency: number, version: string, uiOverride?: UI): CliContext {
   const interrupt = createInterruptHandler();
   const state = createState(concurrency);
-
-  const off = false;
-  let uiContext: UiContext;
-
-  if (!off) {
-    uiContext = (ui || DEFAULT_UI)(state.observable);
-  } else {
-    uiContext = {
-      stop: async () => void 0,
-    };
-  }
+  const uiContext = (uiOverride || DEFAULT_UI)({ concurrency, version, state: state.observable });
 
   return { interrupt, ui: uiContext, state };
+}
+
+async function writeExceptions(
+  config: Config,
+  exceptions: AsyncIterable<Exception>
+): Promise<boolean> {
+  let writeStream: NodeJS.WritableStream | null = null;
+
+  for await (const exception of exceptions) {
+    const firstResult = writeStream === null;
+
+    if (firstResult) {
+      writeStream = createWriteStream(join(config.output, "errors.json"));
+      writeStream.write("[");
+    }
+
+    const stringified = JSON.stringify({
+      name: exception.name,
+      message: exception.message,
+    });
+
+    await new Promise<undefined>((res, rej) => {
+      (writeStream as NodeJS.WritableStream).write((firstResult ? "" : ",") + stringified, (err) =>
+        err ? rej(err) : res()
+      );
+    });
+  }
+
+  if (writeStream !== null) {
+    writeStream.write("]");
+    writeStream.end();
+    return true;
+  }
+
+  return false;
 }

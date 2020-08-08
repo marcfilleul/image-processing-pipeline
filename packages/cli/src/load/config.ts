@@ -1,10 +1,9 @@
-import { ManifestMappings, Pipeline } from "@ipp/common";
-import Ajv from "ajv";
+import { ManifestMappings, Pipeline, PipelineSchema } from "@ipp/common";
+import Ajv, { ErrorObject, AdditionalPropertiesParams, RequiredParams } from "ajv";
 import { bold, white } from "chalk";
 import { cosmiconfig } from "cosmiconfig";
 import { CliException, CliExceptionCode } from "../lib/exception";
 import configSchema from "../schema/config.json";
-import pipelineSchema from "../schema/pipeline.json";
 
 const MODULE_NAME = "ipp";
 
@@ -46,8 +45,8 @@ function validateConfig(config: Partial<Config>): Config {
 
   const filteredConfig = { ...config };
 
-  const ajv = new Ajv({ removeAdditional: true, allErrors: true });
-  ajv.addSchema(pipelineSchema);
+  const ajv = new Ajv({ allErrors: true });
+  ajv.addSchema(PipelineSchema);
 
   const valid = ajv.validate(configSchema, filteredConfig);
 
@@ -56,7 +55,7 @@ function validateConfig(config: Partial<Config>): Config {
       "Invalid config",
       CliExceptionCode.CONFIG_PARSE,
       "Configuration validation failed",
-      ajv.errors?.map((e) => `property "${bold(e.dataPath.substr(1))}" ${e.message}`).join("\n")
+      ajv.errors?.map(parseAjvError).join("\n")
     );
 
   return filteredConfig as Config;
@@ -83,4 +82,24 @@ function friendlyParse(config: Partial<Config> = {}): void {
       "Invalid configuration",
       errors.join("\n") + `\n\n${white("Did you create a configuration file?")}`
     );
+}
+
+/** Friendlier hints as to why the validation faled */
+function parseAjvError({ dataPath, keyword, message, params }: ErrorObject): string {
+  const property = bold(`Config${dataPath}`);
+
+  switch (keyword) {
+    case "additionalProperties":
+      return `${property} has an unknown property "${bold(
+        (params as AdditionalPropertiesParams).additionalProperty
+      )}"`;
+
+    case "required":
+      return `${property} is missing property "${bold(
+        (params as RequiredParams).missingProperty
+      )}"`;
+
+    default:
+      return `${property} ${message}`;
+  }
 }

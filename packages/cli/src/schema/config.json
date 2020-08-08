@@ -14,7 +14,7 @@
       "type": "string"
     },
     "pipeline": {
-      "$ref": "https://raw.githubusercontent.com/MarcusCemes/image-processing-pipeline/master/packages/cli/src/schema/pipeline.json"
+      "$ref": "https://raw.githubusercontent.com/MarcusCemes/image-processing-pipeline/master/packages/common/src/schema/pipeline.json"
     },
 
     "concurrency": {
@@ -25,6 +25,7 @@
     },
     "manifest": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "source": {
           "patternProperties": {

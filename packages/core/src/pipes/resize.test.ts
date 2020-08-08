@@ -1,7 +1,7 @@
-import { DataObject, sampleMetadata } from "@ipp/common";
+import { DataObject, PipeException, sampleMetadata } from "@ipp/common";
 import { randomBytes } from "crypto";
-import sharp, { OutputInfo, Sharp } from "sharp";
-import { ResizePipe } from "./resize";
+import sharp, { OutputInfo, Sharp, ResizeOptions as SharpOptions } from "sharp";
+import { ResizePipe, ResizeOptions } from "./resize";
 
 jest.mock("sharp");
 
@@ -22,9 +22,9 @@ describe("built-in resize pipe", () => {
     info: {
       width: resizeOptions.width,
       height: resizeOptions.height,
-      channels: data.metadata.channels,
+      channels: data.metadata.current.channels,
       size: data.buffer.length,
-      format: data.metadata.format,
+      format: data.metadata.current.format,
       premultiplied: false,
     } as OutputInfo,
   };
@@ -34,8 +34,11 @@ describe("built-in resize pipe", () => {
     ...data,
     metadata: {
       ...data.metadata,
-      width: toBufferResult.info.width,
-      height: toBufferResult.info.height,
+      current: {
+        ...data.metadata.current,
+        width: toBufferResult.info.width,
+        height: toBufferResult.info.height,
+      },
     },
   };
 
@@ -66,7 +69,14 @@ describe("built-in resize pipe", () => {
     await expect(result).resolves.toMatchObject<DataObject[]>(
       names.map((breakpoint) => ({
         ...newData,
-        metadata: { ...newData.metadata, ...resizeOptions, breakpoint },
+        metadata: {
+          ...newData.metadata,
+          current: {
+            ...newData.metadata.current,
+            ...resizeOptions,
+            breakpoint,
+          },
+        },
       }))
     );
 
@@ -83,7 +93,10 @@ describe("built-in resize pipe", () => {
     await expect(result).resolves.toMatchObject<DataObject[]>([
       {
         ...newData,
-        metadata: { ...newData.metadata, ...resizeOptions, breakpoint: "sm" },
+        metadata: {
+          ...newData.metadata,
+          current: { ...newData.metadata.current, ...resizeOptions, breakpoint: "sm" },
+        },
       },
     ]);
 
@@ -97,7 +110,7 @@ describe("built-in resize pipe", () => {
     await expect(result).resolves.toMatchObject<DataObject>(newData);
 
     // This is the important part
-    expect(data.metadata.width).toBeLessThan(1920);
+    expect(data.metadata.current.width).toBeLessThan(1920);
     expect(resizeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         width: 1920,
@@ -113,7 +126,7 @@ describe("built-in resize pipe", () => {
 
     await expect(result).resolves.toBeTruthy();
 
-    expect(data.metadata.width).toBeLessThan(1920);
+    expect(data.metadata.current.width).toBeLessThan(1920);
     expect(resizeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         width: 1920,
@@ -127,8 +140,11 @@ describe("built-in resize pipe", () => {
    * contextual metadata to the sharp instance and retaining the raw format afterwards.
    */
   test("handles raw image data", async () => {
-    const rawData: DataObject = { ...data, metadata: { ...data.metadata, format: "raw" } };
-    const { width, height, channels } = rawData.metadata;
+    const rawData: DataObject = {
+      ...data,
+      metadata: { ...data.metadata, current: { ...data.metadata.current, format: "raw" } },
+    };
+    const { width, height, channels } = rawData.metadata.current;
     const sharpRawReturnedInfo = {
       ...toBufferResult,
       info: { ...toBufferResult.info, format: "raw" },
@@ -141,10 +157,22 @@ describe("built-in resize pipe", () => {
 
     await expect(result).resolves.toMatchObject<DataObject>({
       ...rawData,
-      metadata: { ...rawData.metadata, ...resizeOptions },
+      metadata: {
+        ...rawData.metadata,
+        current: {
+          ...rawData.metadata.current,
+          ...resizeOptions,
+        },
+      },
     });
 
     expect(sharp).toHaveBeenCalledWith(rawData.buffer, { raw: { width, height, channels } });
     expect(resizeMock).toHaveBeenCalledWith(expect.objectContaining(resizeOptions));
+  });
+
+  test("handles missing options", async () => {
+    const result = ResizePipe(data);
+
+    await expect(result).rejects.toBeInstanceOf(PipeException);
   });
 });

@@ -1,6 +1,5 @@
 import { bold } from "chalk";
 import leven from "leven";
-import { env } from "process";
 import yargs from "yargs";
 import { repository, version } from "../constants";
 import { CliException, CliExceptionCode } from "../lib/exception";
@@ -9,10 +8,8 @@ export interface Args {
   input?: string;
   output?: string;
   config?: string;
-  silent?: boolean;
-  default?: boolean;
   text?: boolean;
-  debug?: boolean;
+  strict?: boolean;
 }
 
 const options = {
@@ -33,6 +30,16 @@ const options = {
     alias: "c",
     description: "The path to the IPP config file",
   },
+
+  text: {
+    type: "boolean",
+    description: "Only write static terminal output",
+  },
+
+  strict: {
+    type: "boolean",
+    description: "Fail immediately and verbosely",
+  },
 } as const;
 
 const usage = "Usage: ipp [--config=<pathToConfigFile>]";
@@ -46,6 +53,7 @@ export function validateArgs(args: Args): void {
   const allowedOptions = Object.entries(options).reduce<string[]>((p, [key, schema]) => {
     p.push(key);
     if ("alias" in schema) p.push(schema.alias);
+    if (key.indexOf("-") !== -1) p.push(kebabToCamelCase(key));
     return p;
   }, []);
 
@@ -58,7 +66,8 @@ export function validateArgs(args: Args): void {
       `Unrecognised CLI flag "${key}"`,
       CliExceptionCode.ARG_VALIDATION,
       `Unrecognised CLI flag: "${key}"`,
-      `Run ${bold("ipp --help")} to get a list of allowed parameters` + createDidYouMeanMessage(key, allowedOptions)
+      `Run ${bold("ipp --help")} to get a list of allowed parameters` +
+        createDidYouMeanMessage(key, allowedOptions)
     );
   }
 }
@@ -71,3 +80,7 @@ export const createDidYouMeanMessage = (unrecognised: string, allowedOptions: st
 
   return suggestion ? `\n\nDid you mean ${bold(suggestion)}?` : "";
 };
+
+function kebabToCamelCase(text: string): string {
+  return text.replace(/-([a-z])/g, (match) => match[1].toUpperCase());
+}

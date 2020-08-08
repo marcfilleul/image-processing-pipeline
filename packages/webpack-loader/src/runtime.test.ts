@@ -17,7 +17,12 @@ describe.only("function runtime()", () => {
 
   const buffer = randomBytes(8);
   const initialMetadata = { originalPath: ctx.resourcePath };
-  const metadata = { ...sampleMetadata(256, "jpeg"), ...initialMetadata } as Metadata;
+  const sampleMeta = sampleMetadata(256, "jpeg");
+  const metadata: Metadata = {
+    ...sampleMeta,
+    source: { ...sampleMeta.source, path: ctx.resourcePath },
+  };
+  // const metadata = { ...sampleMetadata(256, "jpeg"), ...initialMetadata } as Metadata;
 
   const source: DataObject = { buffer, metadata };
 
@@ -33,8 +38,11 @@ describe.only("function runtime()", () => {
       buffer: randomBytes(8),
       metadata: {
         ...source.metadata,
-        width: 128,
-        height: 128,
+        current: {
+          ...source.metadata.current,
+          width: 128,
+          height: 128,
+        },
       },
     },
     saveKey: true,
@@ -46,10 +54,10 @@ describe.only("function runtime()", () => {
   };
 
   const expected: ManifestExport = {
-    m: {
-      w: metadata.width,
+    s: {
+      w: metadata.current.width,
     },
-    f: [{ w: format.data.metadata.width }],
+    f: [{ w: format.data.metadata.current.width }],
   };
 
   /* -- Mocks -- */
@@ -102,8 +110,8 @@ describe.only("function runtime()", () => {
       srcset: {
         "image/jpeg": "image-1 128w",
       },
-      width: metadata.width,
-      height: metadata.height,
+      width: metadata.current.width,
+      height: metadata.current.height,
     });
   });
 
@@ -142,13 +150,17 @@ describe.only("function runtime()", () => {
         "image/webp": getSrcset("webp"),
         "image/svg+xml": getSrcset("svg"),
       },
-      width: metadata.width,
-      height: metadata.height,
+      width: metadata.current.width,
+      height: metadata.current.height,
     });
   });
 
   test("supports manifest mode", async () => {
-    const result = runtime(ctx, { ...options, manifest: { source: {}, format: { f: "format" } } }, buffer);
+    const result = runtime(
+      ctx,
+      { ...options, manifest: { source: {}, format: { f: "format" } } },
+      buffer
+    );
 
     await expect(result).resolves.toMatchObject<ManifestExport>({
       f: [{ f: "jpeg" }],
@@ -161,20 +173,33 @@ describe.only("function runtime()", () => {
       ["png", "image/png"],
       ["svg", "image/svg+xml"],
       ["webp", "image/webp"],
-      ["UNDEFINED", "application/octet-stream"],
+      ["undefined", "application/octet-stream"],
     ])("Detects %s as %s", async (testFormat, expectedMime) => {
       expect.assertions(1);
       executePipelineMock.mockImplementationOnce(async () => ({
         source,
-        formats: [{ ...format, data: { ...format.data, metadata: { ...format.data.metadata, format: testFormat } } }],
+        formats: [
+          {
+            ...format,
+            data: {
+              ...format.data,
+              metadata: {
+                ...format.data.metadata,
+                current: { ...format.data.metadata.current, format: testFormat },
+              },
+            },
+          },
+        ],
       }));
 
       const result = runtime(ctx, { ...options, manifest: void 0 }, buffer);
       await expect(result).resolves.toMatchObject<SimpleExport>({
-        width: metadata.width,
-        height: metadata.height,
+        width: metadata.current.width,
+        height: metadata.current.height,
         srcset: {
-          [expectedMime]: expect.stringMatching(new RegExp(`^.* ${format.data.metadata.width}w$`)),
+          [expectedMime]: expect.stringMatching(
+            new RegExp(`^.* ${format.data.metadata.current.width}w$`)
+          ),
         },
       });
     });

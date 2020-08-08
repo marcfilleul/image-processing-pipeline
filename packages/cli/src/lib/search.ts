@@ -3,9 +3,8 @@ import { promises } from "fs";
 import { parse, posix } from "path";
 import { CliContext } from "../cli";
 import { Status } from "../model/state";
-import { sleep } from "../utils";
 import { CliException, CliExceptionCode } from "./exception";
-import { InterruptHandler, InterruptException } from "./interrupt";
+import { InterruptException, InterruptHandler } from "./interrupt";
 
 const TASK_ID = "image_search";
 
@@ -28,12 +27,14 @@ export async function searchForImages(ctx: CliContext, paths: string[]): Promise
   try {
     interval = setInterval(() => task.update(void 0, `Found ${count} images`), 200);
 
-    const results = await Promise.all(paths.map((path) => searchPath(path, ctx.interrupt, increment)));
+    const results = await Promise.all(
+      paths.map((path) => searchPath(path, ctx.interrupt, increment))
+    );
     task.update(Status.COMPLETE, `Found ${count} images`);
     clearInterval(interval);
     interval = null;
 
-    ctx.state.update((state) => (state.statistics.images.total = count));
+    ctx.state.update((state) => (state.stats.images.total = count));
     return results;
   } catch (err) {
     task.update(Status.ERROR, "Search for images");
@@ -44,7 +45,11 @@ export async function searchForImages(ctx: CliContext, paths: string[]): Promise
   }
 }
 
-async function searchPath(path: string, interrupt: InterruptHandler, increment: () => void): Promise<SearchResult> {
+async function searchPath(
+  path: string,
+  interrupt: InterruptHandler,
+  increment: () => void
+): Promise<SearchResult> {
   try {
     const stat = await promises.stat(path);
 

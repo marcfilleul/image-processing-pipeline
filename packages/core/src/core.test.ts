@@ -1,5 +1,6 @@
-import { DataObject, PipelineBranch, PipelineResult } from "@ipp/common";
+import { DataObject, Metadata, PipelineBranch, PipelineResult, PipelineFormat } from "@ipp/common";
 import { randomBytes } from "crypto";
+import produce, { current } from "immer";
 import sharp from "sharp";
 import { executePipeline } from "./core";
 import { hash } from "./hash";
@@ -20,13 +21,15 @@ describe("function executePipeline()", () => {
   /* -- Reused utility data -- */
   const buffer = randomBytes(8);
   const sharpMetadata = { width: 256, height: 256, channels: 3, format: "jpeg" };
-  const metadata = {
-    ...sharpMetadata,
-    hash: hash(buffer),
-    originalHash: hash(buffer),
-    originalWidth: sharpMetadata.width,
-    originalHeight: sharpMetadata.height,
-    originalFormat: sharpMetadata.format,
+  const metadata: Metadata = {
+    source: {
+      ...sharpMetadata,
+      hash: hash(buffer),
+    },
+    current: {
+      ...sharpMetadata,
+      hash: hash(buffer),
+    },
   };
 
   const data: DataObject = { buffer, metadata };
@@ -47,7 +50,7 @@ describe("function executePipeline()", () => {
 
   describe("execution", () => {
     test("accepts an empty pipeline", async () => {
-      const result = executePipeline([], buffer, {});
+      const result = executePipeline([], buffer);
       await expect(result).resolves.toMatchObject<PipelineResult>({
         source: data,
         formats: [],
@@ -55,7 +58,7 @@ describe("function executePipeline()", () => {
     });
 
     test("executes a single branch", async () => {
-      const result = executePipeline([{ pipe: "passthrough" }], buffer, {});
+      const result = executePipeline([{ pipe: "passthrough" }], buffer);
       await expect(result).resolves.toMatchObject<PipelineResult>({
         source: data,
         formats: [],
@@ -63,7 +66,7 @@ describe("function executePipeline()", () => {
     });
 
     test("saves a format", async () => {
-      const result = executePipeline([{ pipe: "passthrough", save: "name" }], buffer, {});
+      const result = executePipeline([{ pipe: "passthrough", save: "name" }], buffer);
       await expect(result).resolves.toMatchObject<PipelineResult>({
         source: data,
         formats: [{ data, saveKey: "name" }],
@@ -76,8 +79,7 @@ describe("function executePipeline()", () => {
           { pipe: "passthrough", save: "file1" },
           { pipe: "passthrough", save: "file2" },
         ],
-        buffer,
-        {}
+        buffer
       );
 
       await expect(result).resolves.toMatchObject<PipelineResult>({
@@ -89,8 +91,7 @@ describe("function executePipeline()", () => {
     test("handles nested pipelines", async () => {
       const result = executePipeline(
         [{ pipe: "passthrough", save: "file1", then: [{ pipe: "passthrough", save: "file2" }] }],
-        buffer,
-        {}
+        buffer
       );
 
       await expect(result).resolves.toMatchObject<PipelineResult>({
@@ -108,8 +109,7 @@ describe("function executePipeline()", () => {
             },
           },
         ],
-        buffer,
-        {}
+        buffer
       );
 
       await expect(result).rejects.toThrow("[RejectionPipe] I failed!");
@@ -119,8 +119,7 @@ describe("function executePipeline()", () => {
       const newData = randomBytes(8);
       const result = executePipeline(
         [{ pipe: async (data) => ({ ...data, buffer: newData }), save: true }],
-        buffer,
-        {}
+        buffer
       );
 
       await expect(result).resolves.toMatchObject<PipelineResult>({
@@ -130,11 +129,10 @@ describe("function executePipeline()", () => {
             saveKey: true,
             data: {
               buffer: newData,
-              metadata: {
-                ...metadata,
-                hash: hash(newData),
-                originalHash: hash(buffer),
-              },
+              metadata: produce(metadata, (draft) => {
+                draft.current.hash = hash(newData);
+                draft.source.hash = hash(buffer);
+              }),
             },
           },
         ],
@@ -152,7 +150,7 @@ describe("function executePipeline()", () => {
       ];
 
       for (const pipe of pipes) {
-        const result = executePipeline([{ pipe }], buffer, {});
+        const result = executePipeline([{ pipe }], buffer);
         await expect(result).resolves.toMatchObject<PipelineResult>({
           source: data,
           formats: [],
@@ -166,10 +164,12 @@ describe("function executePipeline()", () => {
         { resolve: "./pipes/non_existent_pipe" },
         { resolve: "./pipes/passthrough", module: "default" },
         { resolve: "./pipes/non_existent_pipe", module: "default" },
+        { resolve: "./pipes/non_existent_pipe", module: "default" },
+        { resolve: "fs" },
       ];
 
       for (const pipe of pipes) {
-        const result = executePipeline([{ pipe }], buffer, {});
+        const result = executePipeline([{ pipe }], buffer);
         await expect(result).rejects.toBeTruthy();
       }
     });
@@ -178,7 +178,7 @@ describe("function executePipeline()", () => {
       const pipes = [null, true, 42];
 
       for (const pipe of pipes) {
-        const result = executePipeline([{ pipe: pipe as any }], buffer, {});
+        const result = executePipeline([{ pipe: pipe as any }], buffer);
         await expect(result).rejects.toThrow("Unknown pipe resolution scheme");
       }
     });
@@ -186,19 +186,19 @@ describe("function executePipeline()", () => {
 
   test("handles metadata errors", async () => {
     metadataMock.mockImplementationOnce(() => Promise.reject("I rejected!"));
-    const result = executePipeline([{ pipe: () => Promise.reject() }], buffer, {});
+    const result = executePipeline([{ pipe: () => Promise.reject() }], buffer);
 
     await expect(result).rejects.toThrow("Metadata error: I rejected!");
   });
 
   test("handles missing metadata values", async () => {
     metadataMock.mockImplementationOnce(async () => ({} as any));
-    const result = executePipeline([{ pipe: () => Promise.reject() }], buffer, {});
+    const result = executePipeline([{ pipe: () => Promise.reject() }], buffer);
 
     await expect(result).rejects.toThrow("Metadata error: missing properties");
   });
 
-  test("handles no pipe output (edge case)", async () => {
+  test("handles no pipe output", async () => {
     const result = executePipeline(
       [
         {
@@ -207,12 +207,36 @@ describe("function executePipeline()", () => {
           }) as any,
         },
       ],
-      buffer,
-      {}
+      buffer
     );
     await expect(result).resolves.toMatchObject<PipelineResult>({
       source: data,
       formats: [],
+    });
+  });
+
+  test("handles multiple pipe outputs", async () => {
+    const result = executePipeline(
+      [
+        {
+          pipe: async () => [
+            { buffer, metadata },
+            { buffer, metadata },
+          ],
+          save: true,
+        },
+      ],
+      buffer
+    );
+    await expect(result).resolves.toMatchObject<PipelineResult>({
+      source: data,
+      formats: new Array<PipelineFormat>(2).fill({
+        data: {
+          buffer,
+          metadata,
+        },
+        saveKey: true,
+      }),
     });
   });
 });

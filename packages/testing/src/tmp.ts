@@ -14,7 +14,9 @@ export interface TemporaryDir {
 
 /** Creates a temporary file */
 export async function withTempFile<T>(fn: (file: string) => T): Promise<T> {
-  return withTempDir((dir) => fn(join(dir, `tmp-${randomBytes(RANDOM_BYTES_LENGTH).toString("hex")}`)));
+  return withTempDir((dir) =>
+    fn(join(dir, `tmp-${randomBytes(RANDOM_BYTES_LENGTH).toString("hex")}`))
+  );
 }
 
 /** https://advancedweb.hu/secure-tempfiles-in-nodejs-without-dependencies/ */

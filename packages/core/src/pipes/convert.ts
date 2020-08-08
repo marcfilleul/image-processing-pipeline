@@ -1,5 +1,8 @@
 import { Pipe, PipeException } from "@ipp/common";
+import produce from "immer";
 import sharp, { Raw, Sharp } from "sharp";
+
+sharp.concurrency(1);
 
 export interface ConvertOptions {
   format: string;
@@ -9,30 +12,32 @@ export interface ConvertOptions {
 export const ConvertPipe: Pipe<ConvertOptions> = async (data, options) => {
   if (!options || !options.format) throw new PipeException('Missing "format" option');
 
+  const { current } = data.metadata;
+  const targetFormat = options.format === "original" ? data.metadata.source.format : options.format;
+
   const {
     data: newData,
     info: { width, height, channels, format },
   } = await sharp(data.buffer as Buffer, {
     raw:
-      data.metadata.format === "raw"
+      current.format === "raw"
         ? {
-            width: data.metadata.width,
-            height: data.metadata.height,
-            channels: data.metadata.channels as Raw["channels"],
+            width: current.width,
+            height: current.height,
+            channels: current.channels as Raw["channels"],
           }
         : void 0,
   })
-    .toFormat(options.format === "original" ? data.metadata.originalFormat : options.format, options.convertOptions)
+    .toFormat(targetFormat, options.convertOptions)
     .toBuffer({ resolveWithObject: true });
 
   return {
     buffer: newData,
-    metadata: {
-      ...data.metadata,
-      width,
-      height,
-      channels,
-      format,
-    },
+    metadata: produce(data.metadata, (draft) => {
+      draft.current.width = width;
+      draft.current.height = height;
+      draft.current.channels = channels;
+      draft.current.format = format;
+    }),
   };
 };

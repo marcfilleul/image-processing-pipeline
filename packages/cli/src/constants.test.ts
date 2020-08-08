@@ -6,7 +6,9 @@ describe("constants", () => {
   let packageJson: any;
 
   beforeAll(async () => {
-    packageJson = JSON.parse((await promises.readFile(join(__dirname, "../package.json"))).toString());
+    packageJson = JSON.parse(
+      (await promises.readFile(join(__dirname, "../package.json"))).toString()
+    );
   });
 
   test("version matches package.json", () => {

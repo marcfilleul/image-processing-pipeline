@@ -1,11 +1,12 @@
-import { DataObject, Immutable, Pipe } from "@ipp/common";
+import { DataObject, Pipe, PipeException } from "@ipp/common";
+import produce from "immer";
 import sharp, { Raw, ResizeOptions as SharpOptions } from "sharp";
 
 sharp.concurrency(1);
 
 export interface Breakpoint {
   name?: string;
-  resizeOptions?: SharpOptions;
+  resizeOptions: SharpOptions;
 }
 
 export interface ResizeOptions {
@@ -19,18 +20,27 @@ export interface ResizeOptions {
  * different breakpoints. When creating breakpoints, duplicate sizes will be skipped.
  */
 export const ResizePipe: Pipe<ResizeOptions> = async (data, options = {}) => {
+  if (options.breakpoints) {
+    if (options.allowDuplicates) {
+      // Execute a blind breakpoint resize with no dimension checking
+      return Promise.all(options.breakpoints.map((brk) => executeBreakpoint(brk, data)));
+    }
+
+    // Estimate the resulting size and remove any would-be-duplicates
+    const { width, height } = data.metadata.current;
+    return Promise.all(
+      options.breakpoints
+        .filter(duplicateFilter(width, height))
+        .map((brk) => executeBreakpoint(brk, data))
+    );
+  }
+
   // Execute a single resize
-  if (!options.breakpoints) return executeBreakpoint({ resizeOptions: options.resizeOptions }, data);
+  if (options.resizeOptions) {
+    return executeBreakpoint({ resizeOptions: options.resizeOptions }, data);
+  }
 
-  // Execute a blind breakpoint resize
-  if (options.allowDuplicates) return Promise.all(options.breakpoints.map((brk) => executeBreakpoint(brk, data)));
-
-  // Estimate the resulting size and remove any would-be-duplicates
-  return Promise.all(
-    options.breakpoints
-      .filter(duplicateFilter(data.metadata.width, data.metadata.height, options.resizeOptions?.withoutEnlargement))
-      .map((brk) => executeBreakpoint(brk, data))
-  );
+  throw new PipeException("No resize options were given");
 };
 
 /**
@@ -41,12 +51,22 @@ export const ResizePipe: Pipe<ResizeOptions> = async (data, options = {}) => {
  * During calculation, the size of the image diagonal is rounded to the nearest integer
  * to compensate for floating-point error;
  */
-function duplicateFilter(width: number, height: number, withoutEnlargement = true): (brk: Breakpoint) => boolean {
+function duplicateFilter(width: number, height: number): (brk: Breakpoint) => boolean {
   const previous: number[] = [];
   const diagonal = width * height;
 
   return (brk) => {
-    const scaledDiagonal = calculateDiagonal(width, height, brk.resizeOptions?.width, brk.resizeOptions?.height);
+    const scaledDiagonal = calculateDiagonal(
+      width,
+      height,
+      brk.resizeOptions?.width,
+      brk.resizeOptions?.height
+    );
+
+    const withoutEnlargement =
+      typeof brk.resizeOptions.withoutEnlargement !== "undefined"
+        ? brk.resizeOptions.withoutEnlargement
+        : true;
 
     const newDiagonal = withoutEnlargement ? Math.min(diagonal, scaledDiagonal) : scaledDiagonal;
 
@@ -64,7 +84,12 @@ function duplicateFilter(width: number, height: number, withoutEnlargement = tru
  *
  * If neither target options are specified, the original diagonal is returned.
  */
-function calculateDiagonal(width: number, height: number, targetWidth?: number, targetHeight?: number): number {
+function calculateDiagonal(
+  width: number,
+  height: number,
+  targetWidth?: number,
+  targetHeight?: number
+): number {
   const widthFactor = targetWidth ? targetWidth / width : Infinity;
   const heightFactor = targetHeight ? targetHeight / height : Infinity;
 
@@ -73,36 +98,40 @@ function calculateDiagonal(width: number, height: number, targetWidth?: number, 
 }
 
 /** Converts the breakpoint into a Sharp execution instance */
-async function executeBreakpoint(breakpoint: Breakpoint, data: Immutable<DataObject>): Promise<DataObject> {
+async function executeBreakpoint(breakpoint: Breakpoint, data: DataObject): Promise<DataObject> {
+  const { current } = data.metadata;
+
   const {
     data: newBuffer,
     info: { width, height, format, channels },
   } = await sharp(data.buffer as Buffer, {
     raw:
-      data.metadata.format === "raw"
+      current.format === "raw"
         ? {
-            width: data.metadata.width,
-            height: data.metadata.height,
-            channels: data.metadata.channels as Raw["channels"],
+            width: current.width,
+            height: current.height,
+            channels: current.channels as Raw["channels"],
           }
         : void 0,
   })
     .resize(extractSharpOptions({ withoutEnlargement: true, ...breakpoint.resizeOptions }))
     .toBuffer({ resolveWithObject: true });
 
-  const returnValue: DataObject = {
-    buffer: newBuffer,
-    metadata: {
-      ...data.metadata,
-      width,
-      height,
-      format,
-      channels,
-    },
-  };
+  const newMetadata = produce(data.metadata, (draft) => {
+    draft.current.width = width;
+    draft.current.height = height;
+    draft.current.channels = channels;
+    draft.current.format = format;
 
-  if (breakpoint.name) returnValue.metadata.breakpoint = breakpoint.name;
-  return returnValue;
+    if (breakpoint.name) {
+      draft.current.breakpoint = breakpoint.name;
+    }
+  });
+
+  return {
+    buffer: newBuffer,
+    metadata: newMetadata,
+  };
 }
 
 function extractSharpOptions(options: SharpOptions = {}): SharpOptions {

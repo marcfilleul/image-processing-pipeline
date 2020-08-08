@@ -1,24 +1,7 @@
-import { Immutable } from "./types";
+import { Metadata } from "./metadata";
 
 /** A primitive value that can be easily serialised and used in metadata */
-export type PrimitiveValue = boolean | number | string;
-
-/**
- * A flexible metadata object that is passed between pipes,
- * and included with each saved format.
- */
-export interface Metadata {
-  format: string;
-  width: number;
-  height: number;
-  channels: number;
-  hash: string;
-  originalFormat: string;
-  originalWidth: number;
-  originalHeight: number;
-  originalHash: string;
-  [index: string]: PrimitiveValue;
-}
+export type PrimitiveValue = boolean | number | string | Buffer;
 
 /** A binary buffer with an associated metadata object */
 export interface DataObject {
@@ -33,9 +16,9 @@ export interface DataObject {
  * metadata object will be passed to any future pipes down that chain.
  */
 export type Pipe<O = any> = (
-  data: Immutable<DataObject>,
+  data: DataObject,
   options?: O
-) => Promise<Immutable<DataObject> | Immutable<DataObject>[]>;
+) => Promise<undefined | DataObject | DataObject[]>;
 
 /**
  * A saved chunk of the pipeline process. It is generated from a DataObject returned from a

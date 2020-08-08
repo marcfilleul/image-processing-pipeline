@@ -1,5 +1,5 @@
 export * from "./exception";
-export * from "./manifest";
+export * from "./metadata";
 export * from "./pipeline";
-export * from "./types";
+export * from "./schema";
 export * from "./utils";

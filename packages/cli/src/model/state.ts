@@ -38,7 +38,7 @@ export interface State {
   message?: string;
 
   tasks: Task[];
-  statistics: Statistics;
+  stats: Statistics;
 }
 
 export interface StateContext {
@@ -62,7 +62,7 @@ export function createState(concurrency: number): StateContext {
   let state: State = {
     stage: Stage.INIT,
     tasks: [],
-    statistics: {
+    stats: {
       concurrency,
       images: {
         active: 0,

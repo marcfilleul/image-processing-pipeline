@@ -7,14 +7,12 @@
 import { fork } from "child_process";
 import { cpus, platform } from "os";
 import { argv, env } from "process";
+import { DEFAULT_LIBUV_THREADPOOL } from "./constants";
 
 /** Environmental variable entry that signifies that process has already been forked */
 const FORK_VARIABLE = "IPP_FORKED";
 
 const CONCURRENCY_FLAGS = ["-c", "--concurrency"];
-
-/** http://docs.libuv.org/en/v1.x/threadpool.html */
-const LIBUV_DEFAULT_THREADPOOL = 4;
 
 async function main() {
   const concurrency = elevateUvThreads();
@@ -34,13 +32,17 @@ main().catch((err) => console.error(err));
  * and execution should not continue.
  */
 function elevateUvThreads(): number | false {
-  if (typeof env.DEBUG !== "undefined") return LIBUV_DEFAULT_THREADPOOL;
+  if (typeof env.DEBUG !== "undefined") return DEFAULT_LIBUV_THREADPOOL;
 
   // Prevent an infinite loop of spawned processes
-  if (typeof env[FORK_VARIABLE] !== "undefined" || process.connected)
-    return parseInt((env.UV_THREADPOOL_SIZE || 0) as string) + LIBUV_DEFAULT_THREADPOOL;
+  if (typeof env[FORK_VARIABLE] !== "undefined" || process.connected) {
+    const detectedSize = parseInt(env.UV_THREADPOOL_SIZE as string);
+    if (!detectedSize) return DEFAULT_LIBUV_THREADPOOL;
+    return Math.max(detectedSize - DEFAULT_LIBUV_THREADPOOL, DEFAULT_LIBUV_THREADPOOL);
+  }
 
-  const concurrency = LIBUV_DEFAULT_THREADPOOL + (parseConcurrency() || cpus().length);
+  const concurrency = parseConcurrency() || cpus().length;
+  const uvThreads = concurrency + DEFAULT_LIBUV_THREADPOOL;
 
   switch (platform()) {
     case "win32":
@@ -51,7 +53,7 @@ function elevateUvThreads(): number | false {
       fork(__filename, argv.slice(2), {
         env: {
           ...env,
-          UV_THREADPOOL_SIZE: concurrency.toString(),
+          UV_THREADPOOL_SIZE: uvThreads.toString(),
           TS_NODE_PROJECT: env.NODE_ENV === "test" ? "tsconfig.test.json" : void 0,
           [FORK_VARIABLE]: "1",
         },
@@ -60,10 +62,10 @@ function elevateUvThreads(): number | false {
       return false;
 
     default:
-      env.UV_THREADPOOL_SIZE = concurrency.toString();
+      env.UV_THREADPOOL_SIZE = uvThreads.toString();
   }
 
-  return concurrency;
+  return uvThreads;
 }
 
 /** A lightweight CLI flag parser */

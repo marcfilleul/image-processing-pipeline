@@ -3,8 +3,8 @@ import React from "react";
 import { UI } from "../ui";
 import { Terminal } from "./Terminal";
 
-const TerminalUi: UI = (state) => {
-  const ui = render(<Terminal state={state} />, { exitOnCtrlC: false } as RenderOptions);
+export const TerminalUi: UI = (ctx) => {
+  const ui = render(<Terminal ctx={ctx} />, { exitOnCtrlC: false } as RenderOptions);
 
   return {
     stop: async () => {
@@ -13,5 +13,3 @@ const TerminalUi: UI = (state) => {
     },
   };
 };
-
-export default TerminalUi;
