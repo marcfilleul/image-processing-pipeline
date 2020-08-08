@@ -3,7 +3,7 @@ import { createWriteStream } from "fs";
 import { join } from "path";
 import { CliContext } from "../cli";
 import { DEFAULT_LIBUV_THREADPOOL } from "../constants";
-import { Config } from "../load/config";
+import { Config } from "../init/config";
 import { Status, TaskContext } from "../model/state";
 import { unorderedParallelMap } from "./concurrency";
 import { CliException, CliExceptionCode } from "./exception";

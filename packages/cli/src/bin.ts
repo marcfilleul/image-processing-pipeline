@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// Node.js makes if difficult to increase the number of libuv threads that
-// are available to external libraries wih binary addons. This will attempt
-// to increase the number of threads, or run an early process fork on certain
-// platforms.
+
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
 
 import { fork } from "child_process";
 import { cpus, platform } from "os";

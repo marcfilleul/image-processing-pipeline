@@ -1,11 +1,11 @@
 import { grey, red } from "chalk";
 import { stdout } from "process";
-import { CliOptions, startCli } from "./cli";
-import { repositoryShort } from "./constants";
-import { CliException } from "./lib/exception";
-import { load } from "./load/load";
-import { TextUi } from "./ui/text";
-import { BULLET, pad, prettifyError } from "./utils";
+import { CliOptions, startCli } from "../cli";
+import { repositoryShort } from "../constants";
+import { CliException } from "../lib/exception";
+import { TextUi } from "../ui/text";
+import { BULLET, pad, prettifyError } from "../utils";
+import { load } from "./load";
 
 export async function init(concurrency: number): Promise<void> {
   try {
