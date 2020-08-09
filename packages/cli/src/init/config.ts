@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { ManifestMappings, Pipeline, PipelineSchema } from "@ipp/common";
 import Ajv, { ErrorObject, AdditionalPropertiesParams, RequiredParams } from "ajv";
 import { bold, white } from "chalk";
@@ -16,6 +23,15 @@ export interface Config {
   flat?: boolean;
   manifest?: ManifestMappings;
 }
+
+// TODO
+// const defaultConfig: Partial<Config> = {
+// pipeline: [{
+//   pipe: "convert",
+
+// }]
+
+// }
 
 export async function getConfig(initial: Partial<Config>, path?: string): Promise<Config> {
   const config = await loadConfig(path);

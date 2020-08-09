@@ -1,11 +1,20 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import Denque from "denque";
 import { promises } from "fs";
 import { parse, posix } from "path";
+import { Exception } from "~/../../common/src";
 import { CliContext } from "../cli";
 import { Status } from "../model/state";
 import { CliException, CliExceptionCode } from "./exception";
-import { InterruptException, InterruptHandler } from "./interrupt";
+import { InterruptException } from "./interrupt";
 
+const INTERVAL = 200;
 const TASK_ID = "image_search";
 
 const SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tiff", "gif", "svg"];
@@ -15,46 +24,59 @@ export interface SearchResult {
   files?: string[];
 }
 
-export async function searchForImages(ctx: CliContext, paths: string[]): Promise<SearchResult[]> {
+export function searchImages(
+  ctx: CliContext,
+  paths: string[]
+): AsyncIterable<SearchResult | Exception> {
   const task = ctx.state.tasks.add(TASK_ID, Status.PENDING, "Searching for images");
 
   let count = 0;
-  const increment = () => {
-    ++count;
-  };
 
-  let interval: NodeJS.Timeout | null = null;
-  try {
-    interval = setInterval(() => task.update(void 0, `Found ${count} images`), 200);
+  const interval = setInterval(() => {
+    ctx.state.update((state) => {
+      const task = state.tasks.find((task) => task.id === TASK_ID);
+      if (task) {
+        task.text = `Found ${count} images`;
+      }
 
-    const results = await Promise.all(
-      paths.map((path) => searchPath(path, ctx.interrupt, increment))
-    );
-    task.update(Status.COMPLETE, `Found ${count} images`);
-    clearInterval(interval);
-    interval = null;
+      state.stats.images.total = count;
+    });
+  }, INTERVAL);
 
-    ctx.state.update((state) => (state.stats.images.total = count));
-    return results;
-  } catch (err) {
-    task.update(Status.ERROR, "Search for images");
-    throw err;
-  } finally {
-    // Executes synchronously before the event loop is freed for the interval callback
-    if (interval !== null) clearInterval(interval);
-  }
+  const source = (async function* () {
+    const increment = () => ++count;
+
+    try {
+      for (const path of paths) {
+        const pathResults = searchPath(path, increment);
+        for await (const result of pathResults) {
+          yield result;
+        }
+      }
+      task.update(Status.COMPLETE, `Found ${count} images`);
+    } catch {
+      task.update(Status.ERROR, "Search interrupted");
+    } finally {
+      clearInterval(interval);
+    }
+  })();
+
+  return (async function* () {
+    for await (const result of source) {
+      yield result;
+    }
+  })();
 }
 
-async function searchPath(
+async function* searchPath(
   path: string,
-  interrupt: InterruptHandler,
   increment: () => void
-): Promise<SearchResult> {
+): AsyncIterable<SearchResult | Exception> {
   try {
     const stat = await promises.stat(path);
 
     if (stat.isFile()) {
-      return {
+      yield {
         root: path,
       };
     }
@@ -63,18 +85,16 @@ async function searchPath(
       const normalisedPath = posix.normalize(path + "/");
       const extMap = new Set<string>(SUPPORTED_EXTENSIONS.map((x) => `.${x}`));
 
-      const files = [] as string[];
       const queue = new Denque<string>();
 
+      // Queue the directory for walking
       queue.push("");
 
       // Walks nested structures using a loop and a queue on the heap
       // Recursion might cause a stack overflow
       while (queue.length > 0) {
-        if (interrupt.rejected()) await interrupt.rejecter;
-
+        const files = [] as string[];
         const nestedDir = queue.shift();
-
         const openedDir = await promises.opendir(normalisedPath + nestedDir);
 
         // Asynchronously iterating over the open directory
@@ -89,17 +109,17 @@ async function searchPath(
             queue.push(nestedDir + entry.name + posix.sep);
           }
         }
-      }
 
-      return {
-        root: normalisedPath,
-        files,
-      };
+        yield {
+          root: normalisedPath,
+          files,
+        };
+      }
     }
   } catch (err) {
-    if (err instanceof InterruptException) throw err;
+    if (err instanceof InterruptException) return err;
 
-    throw new CliException(
+    return new CliException(
       "Search error: " + err.message || "<unknown message>",
       CliExceptionCode.SEARCH,
       "Image search failed",
@@ -107,7 +127,7 @@ async function searchPath(
     ).extend(err);
   }
 
-  throw new CliException(
+  return new CliException(
     "Invalid path: " + path,
     CliExceptionCode.SEARCH,
     "Invalid input path",

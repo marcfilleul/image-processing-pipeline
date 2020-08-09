@@ -1,11 +1,20 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { grey, red } from "chalk";
+import { Config } from "cosmiconfig/dist/types";
 import { stdout } from "process";
 import { CliOptions, startCli } from "../cli";
 import { repositoryShort } from "../constants";
 import { CliException } from "../lib/exception";
+import { BULLET, pad, prettifyError } from "../lib/utils";
 import { TextUi } from "../ui/text";
-import { BULLET, pad, prettifyError } from "../utils";
-import { load } from "./load";
+import { Args, parseArgs, validateArgs } from "./args";
+import { getConfig } from "./config";
 
 export async function init(concurrency: number): Promise<void> {
   try {
@@ -20,6 +29,23 @@ export async function init(concurrency: number): Promise<void> {
     stdout.write("\n" + pad(grey("Learn more at " + repositoryShort)) + "\n\n");
     process.exitCode = 1;
   }
+}
+
+/** Parses CLI flags and loads the configuration */
+async function load(concurrency: number): Promise<{ args: Args; config: Config }> {
+  const args = await parseArgs();
+  validateArgs(args);
+
+  const initialConfig: Partial<Config> = {
+    concurrency,
+  };
+
+  if (args.input) initialConfig.input = args.input;
+  if (args.output) initialConfig.output = args.output;
+
+  const config = await getConfig(initialConfig, args.config);
+
+  return { args, config };
 }
 
 function formatError(err: Error): string {

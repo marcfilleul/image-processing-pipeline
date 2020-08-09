@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { DataObject, Metadata, PipelineFormat, sampleMetadata } from "@ipp/common";
 import { executePipeline } from "@ipp/core";
 import { randomBytes } from "crypto";
@@ -22,7 +29,6 @@ describe.only("function runtime()", () => {
     ...sampleMeta,
     source: { ...sampleMeta.source, path: ctx.resourcePath },
   };
-  // const metadata = { ...sampleMetadata(256, "jpeg"), ...initialMetadata } as Metadata;
 
   const source: DataObject = { buffer, metadata };
 

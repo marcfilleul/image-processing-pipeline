@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { ManifestMappings, Pipeline, PipelineSchema } from "@ipp/common";
 import { Schema } from "schema-utils/declarations/validate";
 import Ajv from "ajv";

@@ -1,7 +1,7 @@
 {
   "name": "@ipp/webpack-loader",
-  "version": "0.1.0",
-  "description": "A modern parallel image processing pipeline",
+  "version": "1.0.0",
+  "description": "An image build orchestrator for the modern web",
   "author": "Marcus Cemes",
   "license": "MIT",
   "main": "dist/index.js",
@@ -9,6 +9,18 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@ipp/common": "^1.1.0",
+    "@ipp/core": "^1.1.0",
+    "ajv": "^6.12.3",
+    "loader-utils": "^2.0.0",
+    "schema-utils": "^2.7.0"
+  },
+  "devDependencies": {
+    "@ipp/testing": "^1.0.1",
+    "@types/loader-utils": "^2.0.1",
+    "@types/webpack": "^4.41.21"
+  },
   "engines": {
     "node": ">=10.18"
   },
@@ -28,20 +40,7 @@
     "modern",
     "frontend",
     "cli",
-    "image"
-  ],
-  "dependencies": {
-    "@ipp/common": "^1.0.1",
-    "@ipp/core": "^1.0.3",
-    "ajv": "^6.12.3",
-    "loader-utils": "^2.0.0",
-    "schema-utils": "^2.7.0"
-  },
-  "devDependencies": {
-    "@ipp/testing": "^1.0.1",
-    "@types/jest": "^26.0.9",
-    "@types/loader-utils": "^2.0.1",
-    "@types/node": "^14.0.27",
-    "@types/webpack": "^4.41.21"
-  }
+    "image",
+    "processing"
+  ]
 }

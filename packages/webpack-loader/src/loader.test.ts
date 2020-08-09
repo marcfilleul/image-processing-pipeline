@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { randomBytes } from "crypto";
 import loaderUtils from "loader-utils";
 import { ippLoader, raw } from "./loader";
@@ -6,17 +13,16 @@ import * as runtimeModule from "./runtime";
 
 describe("function ippLoader()", () => {
   const source = randomBytes(8);
-  const options: Partial<optionsModule.Options> = {
-    context: "testing",
-  };
 
   let callbackCalled = Promise.resolve();
   const callback = jest.fn();
   const getOptionsSpy = jest.spyOn(loaderUtils, "getOptions");
-  const optionsSpy = jest.spyOn(optionsModule, "checkOptions").mockImplementation((o) => o as any);
+  const checkOptionsSpy = jest
+    .spyOn(optionsModule, "checkOptions")
+    .mockImplementation((o) => o as any);
   const runtimeSpy = jest
     .spyOn(runtimeModule, "runtime")
-    .mockImplementation(async (o) => ({ __runtimeExport: true } as any));
+    .mockImplementation(async () => ({ __runtimeExport: true } as any));
 
   const ctx = {
     async: jest.fn(() => callback),
@@ -47,6 +53,14 @@ describe("function ippLoader()", () => {
     await callbackCalled;
 
     expect(ctx.cacheable).toHaveBeenCalledWith(true);
+  });
+
+  test("gets and checks options", async () => {
+    ippLoader.bind(ctx)(source, void 0);
+    await callbackCalled;
+
+    expect(getOptionsSpy).toHaveBeenCalled();
+    expect(checkOptionsSpy).toHaveBeenCalled();
   });
 
   test("fails if no callback", async () => {

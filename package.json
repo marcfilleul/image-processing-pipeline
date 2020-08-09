@@ -1,8 +1,8 @@
 {
   "name": "image-processing-pipeline",
   "private": true,
-  "version": "4.0.0",
-  "description": "A modern parallel image processing pipeline",
+  "version": "4.1.0",
+  "description": "An image build orchestrator for the modern web",
   "author": "Marcus Cemes",
   "license": "MIT",
   "scripts": {

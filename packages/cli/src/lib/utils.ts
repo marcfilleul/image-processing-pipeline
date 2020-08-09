@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import PrettyError from "pretty-error";
 import { argv } from "process";
 
@@ -21,6 +28,7 @@ export function pad(text: string, padding: number = PADDING): string {
     .join("\n");
 }
 
+/** Scans argv for a `-v` or `--verbose` flag */
 function isVerbose(): boolean {
   for (const flag of ["-v", "--verbose"]) {
     if (argv.indexOf(flag) !== -1) return true;

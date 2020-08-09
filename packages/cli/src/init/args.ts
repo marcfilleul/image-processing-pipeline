@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { bold } from "chalk";
 import leven from "leven";
 import yargs from "yargs";
@@ -9,7 +16,6 @@ export interface Args {
   output?: string;
   config?: string;
   text?: boolean;
-  strict?: boolean;
 }
 
 const options = {
@@ -34,11 +40,6 @@ const options = {
   text: {
     type: "boolean",
     description: "Only write static terminal output",
-  },
-
-  strict: {
-    type: "boolean",
-    description: "Fail immediately and verbosely",
   },
 } as const;
 

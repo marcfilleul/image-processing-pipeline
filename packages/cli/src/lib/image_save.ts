@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { Exception, mapMetadata, Metadata } from "@ipp/common";
 import { promises } from "fs";
 import produce from "immer";
@@ -7,12 +14,13 @@ import { DEFAULT_LIBUV_THREADPOOL } from "../constants";
 import { Config } from "../init/config";
 import { Status, TaskContext } from "../model/state";
 import { unorderedParallelMap } from "./concurrency";
-import { ProcessResult } from "./process";
+import { ProcessResult } from "./image_process";
+import { CliException, CliExceptionCode } from "./exception";
 
 const TASK_ID = "save_images";
 
 const EXPRESSION_BRACES = "[]";
-const EXPRESSION_MATCHER = /\[([a-zA-Z0-9._-]+)\]/g;
+const EXPRESSION_MATCHER = /\[([a-zA-Z0-9:._-]+)\]/g;
 
 export function saveImages(
   ctx: CliContext,
@@ -21,6 +29,8 @@ export function saveImages(
 ): AsyncIterable<ProcessResult | Exception> {
   let started = false;
   const task = ctx.state.tasks.add(TASK_ID, Status.WAITING, "Save images");
+
+  const startTime = Date.now();
 
   const output = normalize(config.output + "/");
   const saved = unorderedParallelMap(images, DEFAULT_LIBUV_THREADPOOL, async (result) => {
@@ -41,8 +51,26 @@ export function saveImages(
               )
             : basename(result.file);
 
-        const writePath = output + (config.flat ? "" : dirname(result.file) + "/") + name;
+        const relativeDir = config.flat ? "" : dirname(result.file) + "/";
+        const cleanRelativeDir = relativeDir[0] === "." ? relativeDir.substr(2) : relativeDir;
+        const relativePath = cleanRelativeDir + name;
+        const writePath = output + relativePath;
         await promises.mkdir(dirname(writePath), { recursive: true });
+
+        try {
+          const stat = await promises.stat(writePath);
+          if (stat.mtimeMs > startTime) {
+            return new CliException(
+              "Filename collision",
+              CliExceptionCode.SAVE,
+              `Filename collision for "${relativePath}"`,
+              "An image output filename was written to since the start of execution and probably indicates an filename collision."
+            );
+          }
+        } catch {
+          /* */
+        }
+
         await promises.writeFile(writePath, format.data.buffer);
       }
     }

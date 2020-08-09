@@ -1,11 +1,9 @@
-// common/manifest.ts
-//
-// Handles the mapping of pipeline metadata, which is generated
-// during the pipe transformation process, into mapped manifest
-// entries that can be exported from the process.
-//
-// This can be reused across modules, and therefore stays abstract
-// to allow customisation/optimisation on a per-module basis.
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
 
 import { PipelineResult, PrimitiveValue } from "./pipeline";
 

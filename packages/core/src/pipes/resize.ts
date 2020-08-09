@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { DataObject, Pipe, PipeException } from "@ipp/common";
 import produce from "immer";
 import sharp, { Raw, ResizeOptions as SharpOptions } from "sharp";

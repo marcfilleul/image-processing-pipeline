@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { createManifestItem, Exception, ManifestItem } from "@ipp/common";
 import { createWriteStream } from "fs";
 import { join } from "path";
@@ -7,7 +14,7 @@ import { Config } from "../init/config";
 import { Status, TaskContext } from "../model/state";
 import { unorderedParallelMap } from "./concurrency";
 import { CliException, CliExceptionCode } from "./exception";
-import { ProcessResult } from "./process";
+import { ProcessResult } from "./image_process";
 
 const TASK_ID = "save_manifest";
 

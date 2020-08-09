@@ -3,6 +3,8 @@
   "compilerOptions": {
     "jsx": "react",
     "resolveJsonModule": true,
+    "noImplicitAny": false,
+
     "baseUrl": "./packages",
     "paths": {
       "@ipp/*": ["*/src"]

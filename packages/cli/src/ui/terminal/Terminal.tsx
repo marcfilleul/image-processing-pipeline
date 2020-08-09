@@ -1,5 +1,12 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { cross, pointer, square, tick } from "figures";
-import { Box, Static, Text, TextProps } from "ink";
+import { Box, Static, Text } from "ink";
 import Spinner from "ink-spinner";
 import React, { ReactNode } from "react";
 import { Stage, State, Status, Task } from "~/model/state";
@@ -104,8 +111,12 @@ const StageIndicator: React.FC<{
             {pointer} Interrupt
           </Text>
           {!completed && (
-            <Text color="#FF851B">
-              Press <Text bold>Ctrl-C</Text> to force exit
+            <Text color="#cc6a16">
+              Press{" "}
+              <Text bold color="#FF851B">
+                Ctrl-C
+              </Text>{" "}
+              to force exit
             </Text>
           )}
         </Box>
@@ -120,18 +131,18 @@ const ProgressBar: React.FC<{ width: number; progress: number }> = ({ width, pro
   const parsedProgress = isNaN(progress) ? 0 : progress;
   const clampedProgress = Math.max(0, Math.min(1, parsedProgress));
 
-  const progressText = `${Math.round(clampedProgress * 100)}%`.padStart(4);
+  const textWidth = 5;
+  const progressText = `${Math.round(clampedProgress * 100)}%`.padStart(textWidth);
 
-  const internalWidth = width - 4;
+  const internalWidth = width - textWidth;
   const dots = Math.max(0, Math.min(internalWidth, Math.round(clampedProgress * internalWidth)));
   const space = internalWidth - dots;
 
   return (
     <Box>
-      <Text>
-        {square.repeat(dots)}
-        {" ".repeat(space)} {progressText}
-      </Text>
+      <Text backgroundColor="white">{square.repeat(dots)}</Text>
+      <Text backgroundColor="#333">{" ".repeat(space)}</Text>
+      <Text>{progressText}</Text>
     </Box>
   );
 };
@@ -164,13 +175,14 @@ const StateView: React.FC<{ state?: State }> = ({ state }) => {
       {state && state.stage === Stage.PROCESSING && (
         <>
           <Box marginTop={1} width={WIDTH} justifyContent="center">
-            <ProgressBar
-              width={20}
+            <Box flexBasis={4} flexShrink={1}></Box>
+            {/* <ProgressBar
+              width={24}
               progress={
                 (state.stats.images.completed + state.stats.images.failed) /
                 state.stats.images.total
               }
-            />
+            /> */}
           </Box>
         </>
       )}
@@ -179,7 +191,8 @@ const StateView: React.FC<{ state?: State }> = ({ state }) => {
 };
 
 const Completion: React.FC<{ state?: State; status: ObservableStatus }> = ({ state, status }) => {
-  if (!state || status !== "complete") return null;
+  if (!state || (status !== "complete" && ![Stage.INTERRUPT, Stage.ERROR].includes(state.stage)))
+    return null;
 
   return (
     <Box flexDirection="column" marginTop={1} marginBottom={1} paddingLeft={8}>

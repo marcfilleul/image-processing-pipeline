@@ -1,6 +1,13 @@
-import { DataObject, Metadata, PipelineBranch, PipelineResult, PipelineFormat } from "@ipp/common";
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+import { DataObject, Metadata, PipelineBranch, PipelineFormat, PipelineResult } from "@ipp/common";
 import { randomBytes } from "crypto";
-import produce, { current } from "immer";
+import produce from "immer";
 import sharp from "sharp";
 import { executePipeline } from "./core";
 import { hash } from "./hash";

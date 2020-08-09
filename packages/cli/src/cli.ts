@@ -1,13 +1,21 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { Exception } from "@ipp/common";
 import { createWriteStream } from "fs";
 import { join } from "path";
 import { version } from "./constants";
 import { Config } from "./init/config";
+import { CliException } from "./lib/exception";
+import { processImages } from "./lib/image_process";
+import { saveImages } from "./lib/image_save";
+import { searchImages } from "./lib/image_search";
 import { createInterruptHandler, InterruptException, InterruptHandler } from "./lib/interrupt";
 import { saveManifest } from "./lib/manifest";
-import { processImages } from "./lib/process";
-import { saveImages } from "./lib/save_images";
-import { searchForImages } from "./lib/search";
 import { createState, Stage, StateContext } from "./model/state";
 import { UI, UiInstance } from "./ui";
 import { TerminalUi } from "./ui/";
@@ -31,19 +39,21 @@ export async function startCli(config: Config, options: CliOptions = {}): Promis
     ctx.state.update((state) => (state.stage = Stage.PROCESSING));
 
     ctx.interrupt.rejecter.catch(() => {
-      ctx.state.update((state) => state.stage === Stage.INTERRUPT);
+      ctx.state.update((state) => (state.stage = Stage.INTERRUPT));
     });
 
     const paths = config.input instanceof Array ? config.input : [config.input];
-    const images = await searchForImages(ctx, paths);
-    const results = processImages(ctx, config.pipeline, images, config.concurrency);
+    const images = searchImages(ctx, paths);
+    const results = processImages(ctx, config.pipeline, config.concurrency, images);
     const saves = saveImages(ctx, config, results);
     const exceptions = saveManifest(ctx, config, saves);
     await writeExceptions(config, exceptions);
 
-    ctx.state.update(
-      (state) => (state.stage = ctx.interrupt.rejected() ? Stage.INTERRUPT : Stage.DONE)
-    );
+    ctx.state.update((state) => {
+      if (state.stage === Stage.PROCESSING) {
+        state.stage = Stage.DONE;
+      }
+    });
   } catch (err) {
     if (!(err instanceof InterruptException)) {
       ctx.state.update((state) => {
@@ -88,6 +98,13 @@ async function writeExceptions(
     const stringified = JSON.stringify({
       name: exception.name,
       message: exception.message,
+      ...(exception instanceof CliException
+        ? {
+            code: exception.code,
+            title: exception.title,
+            comment: exception.comment,
+          }
+        : {}),
     });
 
     await new Promise<undefined>((res, rej) => {

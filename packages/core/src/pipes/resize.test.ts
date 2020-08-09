@@ -1,7 +1,14 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { DataObject, PipeException, sampleMetadata } from "@ipp/common";
 import { randomBytes } from "crypto";
-import sharp, { OutputInfo, Sharp, ResizeOptions as SharpOptions } from "sharp";
-import { ResizePipe, ResizeOptions } from "./resize";
+import sharp, { OutputInfo, Sharp } from "sharp";
+import { ResizePipe } from "./resize";
 
 jest.mock("sharp");
 

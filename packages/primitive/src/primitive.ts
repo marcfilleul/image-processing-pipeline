@@ -1,3 +1,10 @@
+/**
+ * Image Processing Pipeline - Copyright (c) Marcus Cemes
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 import { Pipe, PipeException } from "@ipp/common";
 import execa from "execa";
 import { arch, platform } from "os";
@@ -49,7 +56,7 @@ export const PrimitivePipe: Pipe<Partial<PrimitivePipeOptions>> = async (data, o
   if (!SUPPORTED_FORMATS.includes(format))
     throw new PipeException(`Unsupported image format: "${format}"`);
 
-  const flags = [];
+  const flags: string[] = [];
   flags.push("-i", "-");
   flags.push("-o", "-");
   flags.push("-n", parsedOptions.number.toString());
